@@ -1349,6 +1349,279 @@ button, input{ -webkit-tap-highlight-color: transparent; }
   .pane.later{ opacity: 1; transform: none; }
 }
 
+/* =========================================================
+   GLORY — the open song.
+   How the page arrives from its pane, how the light lives on
+   its glass while it is read, and how it goes home again.
+   It works on top of every theme and never replaces one.
+   Switch it off with WONDER.glory (in the script).
+   ========================================================= */
+
+/* the angle of the light running round the rim of the glass */
+@property --rimA{ syntax: "<angle>"; inherits: false; initial-value: 212deg; }
+
+:root{
+  /* the three language colours, as numbers, so they can be made transparent */
+  --rgb-it: 122,79,163;
+  --rgb-hr: 196,116,31;
+  --rgb-en: 190,62,82;
+  /* the colour of the song that is open; the script sets it */
+  --arc: 148,160,188;
+}
+
+/* the room behind the page: milk at the heart, a little deeper at the edges */
+.veil{
+  background:
+    radial-gradient(125% 95% at 50% 44%,
+      rgba(242,244,250,.70) 0%,
+      rgba(228,232,241,.82) 58%,
+      rgba(206,213,228,.92) 100%);
+}
+
+/* a breath of the song's own colour, behind the glass */
+.veil .aura{
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150vmax;
+  height: 150vmax;
+  margin: -75vmax 0 0 -75vmax;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(closest-side,
+      rgba(var(--arc),.22) 0%,
+      rgba(var(--arc),.10) 32%,
+      rgba(var(--arc),0)   68%);
+  opacity: 0;
+  transform: scale(.4);
+}
+.veil.on .aura{
+  animation:
+    auraIn 1600ms cubic-bezier(.2,.7,.2,1) forwards,
+    auraBreath 9s ease-in-out 1600ms infinite;
+}
+@keyframes auraIn{ to{ opacity: 1; transform: scale(1); } }
+@keyframes auraBreath{
+  0%,100%{ opacity: 1;   transform: scale(1); }
+  50%    { opacity: .7;  transform: scale(1.07); }
+}
+
+/* the glass throws a little of its colour onto the room */
+.sheet{
+  box-shadow:
+    var(--lift-hover),
+    var(--rim),
+    0 36px 96px -36px rgba(var(--arc),.46),
+    0 0 0 .5px rgba(var(--arc),.12);
+}
+
+/* the rim: the same chamfer as before, but its light can travel */
+.sheet::after{
+  background:
+    conic-gradient(from var(--rimA) at 50% 50%,
+      rgba(255,255,255,1)        0deg,
+      rgba(255,255,255,.34)     64deg,
+      rgba(var(--shade),.50)   148deg,
+      rgba(var(--shade),.24)   196deg,
+      rgba(255,255,255,.98)    238deg,
+      rgba(255,255,255,.40)    312deg,
+      rgba(255,255,255,1)      360deg);
+}
+/* on arrival the light runs twice round the edge and settles where it lives */
+.sheet.arrive::after{ animation: rimRun 2300ms cubic-bezier(.3,.1,.2,1) both; }
+@keyframes rimRun{ from{ --rimA: -508deg; } to{ --rimA: 212deg; } }
+
+/* the theme behind the glass blooms in a moment after the glass lands */
+.sheet.arrive .stage{ animation: stageIn 1700ms cubic-bezier(.2,.7,.2,1) 120ms both; }
+.sheet.turn .stage  { animation: stageIn 1200ms cubic-bezier(.2,.7,.2,1) both; }
+@keyframes stageIn{
+  from{ opacity: .15; transform: scale(1.07); }
+  to  { opacity: 1;   transform: none; }
+}
+
+/* one long gleam of light crosses the glass as it settles */
+.sheet .sheen{
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.sheet .sheen::before{
+  content: "";
+  position: absolute;
+  top: -30%;
+  bottom: -30%;
+  left: 0;
+  width: 44%;
+  background: linear-gradient(100deg,
+      rgba(255,255,255,0)   0%,
+      rgba(255,255,255,.08) 30%,
+      rgba(255,251,244,.50) 50%,
+      rgba(255,255,255,.08) 70%,
+      rgba(255,255,255,0)   100%);
+  transform: translateX(-130%) skewX(-14deg);
+  opacity: 0;
+}
+.sheet.arrive .sheen::before{ animation: sheen 1600ms cubic-bezier(.45,.05,.25,1) 560ms both; }
+@keyframes sheen{
+  0%  { transform: translateX(-130%) skewX(-14deg); opacity: 0; }
+  14% { opacity: 1; }
+  86% { opacity: 1; }
+  100%{ transform: translateX(340%)  skewX(-14deg); opacity: 0; }
+}
+
+/* the same soft light as on the panes, now on the open glass: it follows
+   the pointer, the finger or the tilt of the phone, behind the words */
+.sheet .sglint{
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  width: 680px;
+  height: 680px;
+  margin: -340px 0 0 -340px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle,
+      rgba(255,255,255,.52) 0%,
+      rgba(255,255,255,.22) 24%,
+      rgba(255,249,240,.08) 46%,
+      rgba(255,255,255,0)   68%);
+  transform: translate3d(var(--sgx, -999px), var(--sgy, -999px), 0);
+  opacity: 0;
+  transition: opacity 1000ms ease;
+}
+.sheet.lit .sglint{ opacity: 1; will-change: transform; }
+
+/* a ray of light passes through the letters of the title once it has landed */
+.sheet-head{ position: relative; }
+.title-shine{
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  margin: 0;
+  pointer-events: none;
+  font-size: clamp(1.55rem, 5.1vw, 2.4rem);
+  font-weight: 600;
+  letter-spacing: .16em;
+  line-height: 1.22;
+  text-wrap: balance;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background: linear-gradient(105deg,
+      transparent 0%, transparent 40%,
+      rgba(255,246,228,0)   42%,
+      rgba(255,251,242,.96) 50%,
+      rgba(255,246,228,0)   58%,
+      transparent 60%, transparent 100%) no-repeat;
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+          background-clip: text;
+  opacity: 0;
+}
+.title-shine.go{ animation: titleShine 1800ms cubic-bezier(.4,0,.2,1) var(--shd, 0ms) both; }
+@keyframes titleShine{
+  from{ background-position: 100% 0; opacity: 1; }
+  to  { background-position: 0 0;    opacity: 1; }
+}
+
+/* under the title: the line draws itself out from a small point of the
+   song's colour, like a thread pulled from a bead */
+.sheet-head::after{
+  width: 132px;
+  height: 9px;
+  margin-top: clamp(14px, 2.4vw, 22px);
+  box-shadow: none;
+  background:
+    radial-gradient(circle,
+      rgba(var(--arc),.95) 0 1.6px,
+      rgba(var(--arc),.32) 2.4px,
+      rgba(var(--arc),0)   4.5px) center / 9px 9px no-repeat,
+    linear-gradient(90deg,
+      rgba(var(--shade),0),
+      rgba(var(--shade),.62) 30%,
+      rgba(var(--arc),.58)   50%,
+      rgba(var(--shade),.62) 70%,
+      rgba(var(--shade),0)) center / 100% 1px no-repeat,
+    linear-gradient(90deg,
+      rgba(255,255,255,0),
+      rgba(255,255,255,.9) 50%,
+      rgba(255,255,255,0)) 50% calc(50% + 1px) / 100% 1px no-repeat;
+}
+.reading .sheet-head::after{ animation: ruleDraw 1400ms cubic-bezier(.2,.7,.2,1) 440ms both; }
+@keyframes ruleDraw{
+  from{ transform: scaleX(0); opacity: 0; }
+  35% { opacity: 1; }
+  to  { transform: none; opacity: 1; }
+}
+
+/* the words come up out of the mist, line by line, with a small breath
+   between one stanza and the next */
+.reading .ln{
+  animation: etchGlory 1150ms cubic-bezier(.2,.7,.2,1) forwards;
+  animation-delay: calc(var(--i) * 38ms + var(--p, 0) * 150ms + 400ms);
+}
+@keyframes etchGlory{
+  0%  { opacity: 0; transform: translateY(10px); filter: blur(3px); }
+  60% { filter: blur(0); }
+  100%{ opacity: 1; transform: none; filter: none; }
+}
+
+/* thrown out of the pane as it opens: a flash, two rings of light, petals */
+.open-flash,
+.open-ring,
+.open-petal{
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.open-flash{
+  border-radius: 50%;
+  background: radial-gradient(closest-side,
+      rgba(255,255,255,.95) 0%,
+      rgba(255,250,244,.55) 34%,
+      rgba(var(--arc),.20)  62%,
+      rgba(var(--arc),0)    100%);
+}
+.open-ring{
+  border-radius: 50%;
+  border: 1.5px solid rgba(var(--arc),.58);
+  box-shadow:
+    0 0 18px 1px rgba(var(--arc),.30),
+    inset 0 0 18px 1px rgba(255,255,255,.60);
+}
+
+/* the pane glows softly for a moment when its song comes home */
+.pane .homeglow{
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--arc),.55),
+    inset 0 0 28px 2px rgba(var(--arc),.32);
+  opacity: 0;
+  animation: homeGlow 1700ms ease-out forwards;
+}
+@keyframes homeGlow{
+  0%  { opacity: 0; }
+  18% { opacity: 1; }
+  100%{ opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .open-flash, .open-ring, .open-petal,
+  .sheet .sheen, .sheet .sglint, .title-shine, .pane .homeglow{ display: none; }
+  .veil .aura{ animation: none; opacity: 1; transform: none; }
+}
+
 </style>
 </head>
 <body>
@@ -2097,6 +2370,9 @@ function openSong(s, card){
   fillSheet(s);
 
   veil.hidden = false;
+  /* let the room be drawn once before it is lit, so the veil fades in
+     instead of appearing all at once */
+  void veil.offsetWidth;
   requestAnimationFrame(() => {
     veil.classList.add("on");
 
@@ -2110,12 +2386,15 @@ function openSong(s, card){
     /* measured before the pane is shrunk onto the tile, so the title
        knows exactly where it is going */
     if (wonderReady) flyTitle(card);
+    if (wonderReady) gloryOpen(card);
 
     sheet.style.transition = "none";
     sheet.style.opacity   = ".35";
     sheet.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
     void sheet.offsetWidth;
-    sheet.style.transition = "transform 660ms var(--ease), opacity 420ms ease";
+    sheet.style.transition = (wonderReady && GLORY)
+      ? "transform 880ms cubic-bezier(.2,1.07,.3,1), opacity 480ms ease"
+      : "transform 660ms var(--ease), opacity 420ms ease";
     sheet.style.transform = "none";
     sheet.style.opacity   = "1";
 
@@ -2132,7 +2411,7 @@ function closeSheet(){
   frost.classList.remove("reading");
   veil.classList.remove("on");
   veil.style.opacity = "";
-  if (wonderReady) endFlight();
+  if (wonderReady){ endFlight(); gloryClose(origin); }
 
   /* Stop the weather the moment the pane starts to leave, not when it
      has finished. The sheet is fading to nothing over the next 300ms
@@ -4427,7 +4706,8 @@ const WONDER = {
   reveal: true,   /* panes rise into place as they scroll into view */
   flight: true,   /* the title glides from its pane to the open page */
   swipe:  true,   /* swipe between pages and between songs; pull a song down to close it */
-  depth:  true    /* the title and the rose drift slower than the page as it scrolls */
+  depth:  true,   /* the title and the rose drift slower than the page as it scrolls */
+  glory:  true    /* an open song arrives in light: rings, petals, a gleam on the glass */
 };
 
 var wonderReady = false;
@@ -4479,6 +4759,7 @@ grip.setAttribute("aria-hidden", "true");
 sheet.appendChild(grip);
 
 function wonderFill(s){
+  gloryFill(s);
   const list = visible();
   if (list.length < 2){ nextBtn.hidden = true; return; }
   const i = indexOfSong(list, s);
@@ -4723,6 +5004,13 @@ function applyLight(){
     }
   }
 
+  /* the light on the open glass, measured from where the glass sits in
+     the room and not where it is drawn mid-flight */
+  if (GLORY && !veil.hidden){
+    sglint.style.setProperty("--sgx", (LX - sheet.offsetLeft).toFixed(1) + "px");
+    sglint.style.setProperty("--sgy", (LY - sheet.offsetTop).toFixed(1) + "px");
+  }
+
   if (!WONDER.light || SLOW || !litPanes.size) return;
   /* every rectangle is read first and every pane written after, so the
      browser lays the page out once per frame and not once per pane */
@@ -4954,6 +5242,184 @@ if (WONDER.intro && !SLOW){
 } else {
   setTimeout(startPetals, 800);
 }
+
+/* ---------------- the open song: arrival, light, homecoming ---------------- */
+
+const GLORY = WONDER.glory && !SLOW;
+let gloryBits = [], arriveTimer = 0, homeTimer = 0;
+
+/* a breath of the song's colour behind the glass */
+const aura = document.createElement("div");
+aura.className = "aura";
+aura.setAttribute("aria-hidden", "true");
+veil.insertBefore(aura, sheet);
+
+/* the gleam that crosses the glass, and the light that lives on it */
+const sheen = document.createElement("div");
+sheen.className = "sheen";
+sheen.setAttribute("aria-hidden", "true");
+sheet.appendChild(sheen);
+
+const sglint = document.createElement("div");
+sglint.className = "sglint";
+sglint.setAttribute("aria-hidden", "true");
+sheet.insertBefore(sglint, stage.nextSibling);
+
+/* the ray of light through the title: a twin of the title, laid over it,
+   that is nothing but light */
+const shine = document.createElement("div");
+shine.className = "title-shine";
+shine.setAttribute("aria-hidden", "true");
+elTtl.after(shine);
+
+function restart(el, cls){
+  el.classList.remove(cls);
+  void el.offsetWidth;
+  el.classList.add(cls);
+}
+
+/* Every song that is put on the page: its colour, the breaths between its
+   stanzas, the light through its title. When the page is already open
+   (moving from song to song) the theme and the words rise again too. */
+function gloryFill(s){
+  veil.style.setProperty("--arc", "var(--rgb-" + s.lang + ")");
+
+  const paras = elBody.querySelectorAll("p");
+  for (let k = 0; k < paras.length; k++) paras[k].style.setProperty("--p", k);
+
+  if (!GLORY) return;
+  const open = veil.classList.contains("on");
+  shine.textContent = s.title;
+  shine.style.setProperty("--shd", (open ? 380 : 840) + "ms");
+  restart(shine, "go");
+  if (open){
+    restart(sheet, "turn");
+    restart(frost, "reading");
+  }
+}
+
+function gloryKeep(el){ gloryBits.push(el); return el; }
+
+function gloryDrop(el){
+  const i = gloryBits.indexOf(el);
+  if (i >= 0) gloryBits.splice(i, 1);
+  el.remove();
+}
+
+/* The pane opens: a flash where it was, two rings of light running out
+   across the room, and a handful of black petals thrown into the air.
+   Most fall behind the glass; a few, out of focus, fall in front of it. */
+function gloryBurst(card){
+  const r = card.getBoundingClientRect();
+  if (!r.width) return;
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const far = Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy));
+  const d0 = Math.max(r.width, r.height);
+
+  const flash = gloryKeep(document.createElement("div"));
+  flash.className = "open-flash";
+  const fd = d0 * 1.5;
+  flash.style.width = flash.style.height = fd + "px";
+  veil.insertBefore(flash, sheet);
+  const at = "translate(" + (cx - fd / 2) + "px," + (cy - fd / 2) + "px) ";
+  flash.animate([
+    { transform: at + "scale(.4)", opacity: 0 },
+    { opacity: 1, offset: .16 },
+    { transform: at + "scale(2.8)", opacity: 0 }
+  ], { duration: 1150, easing: "cubic-bezier(.2,.7,.2,1)", fill: "forwards" })
+    .onfinish = function (){ gloryDrop(flash); };
+
+  for (let k = 0; k < 2; k++){
+    const ring = gloryKeep(document.createElement("div"));
+    ring.className = "open-ring";
+    ring.style.left = cx + "px";
+    ring.style.top  = cy + "px";
+    veil.insertBefore(ring, sheet);
+    const end = far * 2 * (k ? .82 : 1.04);
+    ring.animate([
+      { width: d0 * .6 + "px", height: d0 * .6 + "px", transform: "translate(-50%,-50%)", opacity: 0 },
+      { opacity: k ? .55 : .9, offset: .1 },
+      { width: end + "px", height: end + "px", transform: "translate(-50%,-50%)", opacity: 0 }
+    ], { duration: 1500 + k * 350, delay: k * 150, easing: "cubic-bezier(.16,.84,.26,1)", fill: "both" })
+      .onfinish = function (){ gloryDrop(ring); };
+  }
+
+  const n = innerWidth < 640 ? 9 : 14;
+  for (let k = 0; k < n; k++){
+    const depth = Math.random();
+    const front = depth > .64;
+    const size = 10 + depth * 20;
+    const p = gloryKeep(document.createElement("div"));
+    p.className = "open-petal";
+    p.appendChild(makePetal(size, PETAL_INK[k % PETAL_INK.length],
+                            PETAL_SHAPES[(Math.random() * PETAL_SHAPES.length) | 0]));
+    if (front){
+      p.style.filter = "blur(" + ((depth - .64) * 4.5).toFixed(2) + "px)";
+      veil.appendChild(p);
+    } else {
+      veil.insertBefore(p, sheet);
+    }
+
+    /* mostly up and outwards, like a handful thrown, then the long fall */
+    const ang = -Math.PI / 2 + (Math.random() - .5) * Math.PI * 1.5;
+    const dist = (90 + Math.random() * 230) * (1 + depth * .5);
+    const x0 = cx - size / 2, y0 = cy - size * .57;
+    const x1 = x0 + Math.cos(ang) * dist, y1 = y0 + Math.sin(ang) * dist;
+    const x2 = x1 + (Math.random() - .5) * 140, y2 = y1 + 170 + Math.random() * 240;
+    const r0 = Math.random() * 360;
+    const r1 = r0 + (Math.random() < .5 ? -1 : 1) * (220 + Math.random() * 360);
+    const op = (.55 + depth * .4).toFixed(2);
+
+    p.animate([
+      { transform: "translate(" + x0 + "px," + y0 + "px) rotate(" + r0 + "deg) scale(.3)",
+        opacity: 0, easing: "cubic-bezier(.1,.8,.3,1)" },
+      { opacity: op, offset: .08 },
+      { transform: "translate(" + x1 + "px," + y1 + "px) rotate(" + ((r0 + r1) / 2) + "deg) scale(1)",
+        offset: .4, easing: "cubic-bezier(.4,0,.6,1)" },
+      { opacity: op, offset: .68 },
+      { transform: "translate(" + x2 + "px," + y2 + "px) rotate(" + r1 + "deg) scale(.9)", opacity: 0 }
+    ], { duration: 1900 + Math.random() * 1000 - (front ? 350 : 0),
+         delay: Math.random() * 140, fill: "both" })
+      .onfinish = function (){ gloryDrop(p); };
+  }
+}
+
+function gloryOpen(card){
+  clearTimeout(homeTimer);
+  if (!GLORY) return;
+  restart(sheet, "arrive");
+  clearTimeout(arriveTimer);
+  arriveTimer = setTimeout(function (){ sheet.classList.remove("arrive"); }, 2700);
+  sheet.classList.add("lit");
+  if (card) gloryBurst(card);
+  queueLight();
+}
+
+/* The song goes home: whatever was still in the air goes with it, and its
+   pane glows softly for a moment in the song's colour as the page lands. */
+function gloryClose(card){
+  clearTimeout(arriveTimer);
+  sheet.classList.remove("arrive", "turn", "lit");
+  shine.classList.remove("go");
+  const bits = gloryBits.slice();
+  gloryBits = [];
+  setTimeout(function (){ for (const b of bits) b.remove(); }, 440);
+
+  if (!GLORY || !card) return;
+  const arc = getComputedStyle(veil).getPropertyValue("--arc");
+  clearTimeout(homeTimer);
+  homeTimer = setTimeout(function (){
+    if (!card.isConnected) return;
+    const old = card.querySelector(".homeglow");
+    if (old) old.remove();
+    const g = document.createElement("span");
+    g.className = "homeglow";
+    g.style.setProperty("--arc", arc);
+    card.insertBefore(g, card.firstChild);
+    g.addEventListener("animationend", function (){ g.remove(); });
+  }, 340);
+}
+
 
 wonderReady = true;
 queueLight();
