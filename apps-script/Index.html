@@ -2695,16 +2695,11 @@ function fxSprite(size, paint){
 
 
 
+/* Softer and softer copies of a sprite. Done by shrinking and growing
+   rather than ctx.filter, so it looks the same in Safari. */
 function fxBlurs(src, levels){
   const out = [src];
-  for (let i = 1; i < levels; i++){
-    const c = document.createElement("canvas");
-    c.width = src.width; c.height = src.height;
-    const x = c.getContext("2d");
-    x.filter = "blur(" + (i * 1.6).toFixed(1) + "px)";
-    x.drawImage(src, 0, 0);
-    out.push(c);
-  }
+  for (let i = 1; i < levels; i++) out.push(fxSoften(src, 1 + i * 1.25, 0));
   return out;
 }
 
@@ -3134,15 +3129,16 @@ function stampRoseSoft(x, atlas, cx, cy, R, rot, open, alpha){
 
 
 
-function petalSprite(pal, size){
+function petalSprite(pal, size, sheen){
   const S = size || 128;
+  const sh = sheen == null ? .45 : sheen;   /* how much light the tip catches */
   return fxSprite(S, function (x){
     const L = S * .44, W = S * .26;
     const g = x.createLinearGradient(0, L * .5, 0, -L);
     g.addColorStop(0,   roseRGB(pal[0], .98));
     g.addColorStop(.42, roseRGB(pal[1], .98));
     g.addColorStop(.88, roseRGB(pal[2], .96));
-    g.addColorStop(1,   roseRGB(roseMix(pal[2], [255, 255, 255], .45), .90));
+    g.addColorStop(1,   roseRGB(roseMix(pal[2], [255, 255, 255], sh), .90));
     x.translate(0, L * .5);
     x.fillStyle = g;
     rosePetal(x, L * 1.5, W, -1);
@@ -3319,7 +3315,8 @@ function flakeSprite(kind){
 
 function fxGlassDrops(near, opt){
   const o = opt || {};
-  const spr = [bakeDrop(128, 1), bakeDrop(128, .92), bakeDrop(128, 1.06)];
+  const spr = o.tint ? [bakeDew(128, 1, o.tint), bakeDew(128, .92, o.tint), bakeDew(128, 1.06, o.tint)]
+                     : [bakeDrop(128, 1), bakeDrop(128, .92), bakeDrop(128, 1.06)];
   return fxCanvas(near,
     function (w, h){
       const n = Math.round((w * h) / (o.dense || 5200));
@@ -3402,76 +3399,75 @@ const DUST_GLOW = fxGlow([
   [1, "rgba(255,236,242,0)"]
 ]);
 
+/* FIORITURA — the rose opens at the heart of the glass, seen the way a
+   photographer would: one sharp image and one soft one laid together, so
+   it glows. Later its petals let go and fall like real petals, each with
+   its shadow, while gold motes rise through the light. */
 function fxBloomRose(stage, palName, spin){
   const pal = ROSE_PAL[palName];
-  const set = fxBlurs(petalSprite(pal, 128), 3);
+  const at = roseAtlas(pal, 22, 330);
+  const RP = .22;
+  const soft = at.map(function (c){ return fxSoften(c, 7, RP); });
+  const PET = petalSprite(pal, 96);
+  const SP = .3;
+  const shade = petalShade(96, 4, SP);
   return fxCanvas(stage,
     function (w, h){
-      
-
-      const petals = [];
-      for (let i = 0; i < 20; i++){
-        const depth = Math.random();
-        petals.push({
-          t0: 13 + i * 2.1 + rnd(0, 1.6),
-          a:  rnd(0, 6.3),
-          out: rnd(16, 40),
-          fall: rnd(26, 52),
-          sway: rnd(.5, 1.15),
-          ph: rnd(0, 6.3),
-          amp: rnd(14, 34),
-          sp: rnd(-1.5, 1.5),
-          s: .26 + depth * .22,
-          lod: depth > .62 ? 2 : depth > .3 ? 1 : 0,
-          al: .58 + depth * .36
-        });
-      }
       const dust = [];
-      for (let i = 0; i < 16; i++){
-        dust.push({ x: rnd(0, w), y: rnd(0, h), r: rnd(3, 9),
-                    v: rnd(5, 16), sway: rnd(.3, .8), ph: rnd(0, 6.3),
-                    a: rnd(.06, .18) });
+      for (let i = 0; i < (w < 520 ? 10 : 18); i++){
+        dust.push({ x: rnd(0, w), y: rnd(0, h), r: rnd(4, 9), v: rnd(5, 14),
+                    ph: rnd(0, 6.3), a: rnd(.25, .55), tw: rnd(.6, 1.4) });
       }
-      return { set: set, petals: petals, dust: dust,
-               at: roseAtlas(pal, 22, 330), last: 0 };
+      return { petals: [], shed: 0, next: 13, dust: dust, last: 0 };
     },
     function (ctx, w, h, t, st){
       const dt = Math.min(.085, t - st.last); st.last = t;
-      const R  = Math.min(w, h) * .245;
+      const R  = Math.min(w, h) * .235;
       const cx = w * .5, cy = h * .44;
-
-      
 
       const u = clamp01((t - .5) / 19);
       const open = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2.6) / 2;
       const breathe = 1 + Math.sin(t * .42) * .014 + Math.sin(t * .77 + 1.3) * .008;
+      const rr = R * (.30 + .70 * open) * breathe;
+      const rot = t * (spin || .030);
 
       const hs = R * (2.5 + open * 1.9) * breathe;
       ctx.save();
-      ctx.globalAlpha = .18 + open * .30;
+      ctx.globalAlpha = .2 + open * .3;
       ctx.drawImage(BLOOM_HALO, cx - hs / 2, cy - hs / 2, hs, hs);
       ctx.restore();
 
-      stampRoseSoft(ctx, st.at, cx, cy, R * (.30 + .70 * open) * breathe,
-                    t * (spin || .030), open, .90);
+      stampRoseSoft(ctx, at, cx, cy, rr, rot, open, .5);
+      stampRoseSoft(ctx, soft, cx, cy, rr * (1 + 2 * RP), rot, open, .55);
 
-      for (const p of st.petals){
-        const age = t - p.t0;
-        if (age < 0) continue;
-        const a = clamp01(1 - age / 11) * p.al;
-        if (a <= 0) continue;
-        const tang = p.a + Math.PI / 2;
-        const gone = R * .86 + age * p.out;
-        const x = cx + Math.cos(p.a) * gone + Math.cos(tang) * age * 9
-                    + Math.sin(age * p.sway + p.ph) * p.amp;
-        const y = cy + Math.sin(p.a) * gone * .80 + age * p.fall + age * age * 2.1;
-        if (y > h + 90) continue;
-        const sz = 128 * p.s;
+      /* the petals let go one by one once the rose is fully open */
+      if (t >= st.next && st.shed < 22){
+        st.shed++;
+        st.next = t + rnd(1.6, 3.2);
+        const a = rnd(0, 6.3);
+        const p = flutterNew(cx + Math.cos(a) * rr * .75, cy + Math.sin(a) * rr * .65, rnd(30, 44));
+        p.drift = Math.cos(a) * rnd(6, 16);
+        st.petals.push(p);
+      }
+      for (let i = st.petals.length - 1; i >= 0; i--){
+        const p = st.petals[i];
+        flutterStep(p, dt);
+        if (p.y > h + 40){ st.petals.splice(i, 1); continue; }
+        const a = clamp01(p.age / .6);
+        const S = p.s * (1 + 2 * SP);
         ctx.save();
-        ctx.globalAlpha = a;
-        ctx.translate(x, y);
-        ctx.rotate(p.a + age * p.sp + Math.sin(age * p.sway + p.ph) * .5);
-        ctx.drawImage(st.set[p.lod], -sz / 2, -sz / 2, sz, sz);
+        ctx.translate(p.x + 14, p.y + 20);
+        ctx.rotate(p.rot);
+        ctx.scale(1, p.flip);
+        ctx.globalAlpha = .13 * a;
+        ctx.drawImage(shade, -S / 2, -S / 2, S, S);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.scale(1, p.flip);
+        ctx.globalAlpha = .92 * a;
+        ctx.drawImage(PET, -p.s / 2, -p.s / 2, p.s, p.s);
         ctx.restore();
       }
 
@@ -3479,12 +3475,10 @@ function fxBloomRose(stage, palName, spin){
         d.y -= d.v * dt;
         if (d.y < -12){ d.y = h + 12; d.x = rnd(0, w); }
         const sz = d.r * 2;
-        ctx.save();
-        ctx.globalAlpha = d.a * (.5 + open * .5);
-        ctx.drawImage(DUST_GLOW,
-          d.x + Math.sin(d.y * .012 + d.ph) * 16 - sz / 2, d.y - sz / 2, sz, sz);
-        ctx.restore();
+        ctx.globalAlpha = d.a * (.3 + open * .7) * (.55 + .45 * Math.sin(t * d.tw + d.ph));
+        ctx.drawImage(GOLD_MOTE, d.x + Math.sin(d.y * .012 + d.ph) * 16 - sz / 2, d.y - sz / 2, sz, sz);
       }
+      ctx.globalAlpha = 1;
     });
 }
 
@@ -3498,16 +3492,17 @@ function fxBloomRose(stage, palName, spin){
 
 function fxPetalRain(host, opt){
   const o = opt || {};
-  const names = o.pals || ["crimson", "blush", "gold"];
-  const sets = names.map(function (n){ return fxBlurs(petalSprite(ROSE_PAL[n], 128), 4); });
+  const names = o.pals || ["crimson", "blush", "white"];
+  const sets = names.map(function (n){ return fxBlurs(petalSprite(ROSE_PAL[n], 128, o.sheen), 4); });
   return fxCanvas(host,
     function (w, h){
       const sharp = o.sharp;
-      const n = sharp ? Math.round(h / 110) + 3 : Math.round((w * h) / 10500) + 8;
+      const n = sharp ? Math.round(h / 110) + 3 : Math.round((w * h) / 12500) + 8;
       const p = [];
       for (let i = 0; i < n; i++){
         const depth = Math.random();
         p.push({ x: sharp ? bandX(w) : rnd(0, w), y: rnd(-h * .4, h * 1.1),
+                 depth: depth,
                  s: (sharp ? .18 : .16) + depth * (sharp ? .30 : .64),
                  v: 16 + depth * 52, sw: rnd(14, 54), ph: rnd(0, 6.3),
                  rot: rnd(0, 6.3), rv: rnd(-1.5, 1.5),
@@ -3520,12 +3515,16 @@ function fxPetalRain(host, opt){
     },
     function (ctx, w, h, t, st){
       const dt = Math.min(.085, t - st.last); st.last = t;
+      /* the air is never quite still: now and then a soft gust leans
+         every petal the same way, the nearest ones most */
+      const gust = (vnoise(t * .16, 2.3, 17) - .45) * 70;
       for (const q of st.p){
         q.y += q.v * dt;
-        q.rot += q.rv * dt;
-        if (q.y > h + 70){ q.y = rnd(-140, -50); q.x = o.sharp ? bandX(w) : rnd(0, w); }
-        
-
+        q.x += gust * (.4 + q.depth) * dt;
+        q.rot += (q.rv + gust * .004) * dt;
+        if (q.y > h + 70 || q.x < -90 || q.x > w + 90){
+          q.y = rnd(-140, -50); q.x = o.sharp ? bandX(w) : rnd(-40, w + 40);
+        }
         const turn = Math.cos(t * q.tumble + q.ph);
         const sz = 128 * q.s;
         ctx.save();
@@ -3539,6 +3538,36 @@ function fxPetalRain(host, opt){
     });
 }
 
+/* A few very large petals passing close to the eye, far out of focus:
+   the depth that makes the rest feel like a real fall of petals. */
+function fxBokehPetals(host, pals){
+  const PP = .35;
+  const spr = pals.map(function (n){ return fxSoften(petalSprite(ROSE_PAL[n], 128), 9, PP); });
+  return fxCanvas(host,
+    function (w, h){
+      const p = [];
+      for (let i = 0; i < 4; i++){
+        p.push({ x: bandX(w), y: rnd(-h, h), s: rnd(150, 230), v: rnd(26, 40), rot: rnd(0, 6.3),
+                 rv: rnd(-.4, .4), ph: rnd(0, 6.3), k: i % spr.length });
+      }
+      return { p: p, last: 0 };
+    },
+    function (ctx, w, h, t, st){
+      const dt = Math.min(.085, t - st.last); st.last = t;
+      for (const q of st.p){
+        q.y += q.v * dt; q.rot += q.rv * dt;
+        if (q.y > h + q.s){ q.y = -q.s; q.x = bandX(w); }
+        const S = q.s * (1 + 2 * PP);
+        ctx.save();
+        ctx.globalAlpha = .34;
+        ctx.translate(q.x + Math.sin(t * .3 + q.ph) * 30, q.y);
+        ctx.rotate(q.rot);
+        ctx.scale(Math.max(.3, Math.abs(Math.cos(t * .5 + q.ph))), 1);
+        ctx.drawImage(spr[q.k], -S / 2, -S / 2, S, S);
+        ctx.restore();
+      }
+    });
+}
 
 
 
@@ -3547,25 +3576,61 @@ function fxPetalRain(host, opt){
 
 
 
+
+/* VORTICE — petals drawn into a slow whirl, the nearer ones larger and
+   sharper, each turning over as it goes; and threads of wind, like silk,
+   that show the shape of the air. */
 function fxVortex(stage, palName){
-  const set = fxBlurs(petalSprite(ROSE_PAL[palName], 128), 4);
+  const sets = [fxBlurs(petalSprite(ROSE_PAL[palName], 128), 4),
+                fxBlurs(petalSprite(ROSE_PAL.blush, 128), 4),
+                fxBlurs(petalSprite(ROSE_PAL.white, 128), 4)];
   return fxCanvas(stage,
     function (w, h){
       const n = Math.round((w * h) / 12000), p = [];
       const R = Math.max(w, h) * .78;
       for (let i = 0; i < n; i++){
         const depth = Math.random();
+        const pick = Math.random();
         p.push({ r: Math.sqrt(Math.random()) * R, a: rnd(0, 6.3),
-                 s: .22 + depth * .66, sp: (.10 + depth * .30) * (Math.random() < .12 ? -1 : 1),
+                 s: .22 + depth * .62, sp: (.10 + depth * .30) * (Math.random() < .12 ? -1 : 1),
                  pull: 8 + depth * 26, rot: rnd(0, 6.3), rv: rnd(-1.2, 1.2),
-                 lod: Math.min(3, Math.round((1 - depth) * 3)),
+                 lod: Math.min(3, Math.round((1 - depth) * 3)), ph: rnd(0, 6.3), tb: rnd(.8, 2),
+                 set: sets[pick < .6 ? 0 : pick < .85 ? 1 : 2],
                  a2: .22 + depth * .56, R: R });
       }
-      return { p: p, last: 0 };
+      const silk = [];
+      for (let i = 0; i < 6; i++) silk.push({ a0: i / 6 * 6.283 + rnd(-.3, .3), k: rnd(.9, 1.3), ph: rnd(0, 6.3) });
+      return { p: p, silk: silk, last: 0 };
     },
     function (ctx, w, h, t, st){
       const dt = Math.min(.085, t - st.last); st.last = t;
       const cx = w * .5, cy = h * .48;
+      const Rs = Math.max(w, h) * .7;
+
+      /* the threads of wind: long spirals turning slowly, brightest in
+         the middle of their length */
+      ctx.save();
+      ctx.lineCap = "round";
+      for (const s of st.silk){
+        const a0 = s.a0 + t * .09;
+        const alpha = .5 + .5 * Math.sin(t * .35 + s.ph);
+        for (let pass = 0; pass < 2; pass++){
+          ctx.beginPath();
+          for (let i = 0; i <= 60; i++){
+            const f = i / 60;
+            const r = Rs * (1 - f * .85);
+            const a = a0 + f * 3.4 * s.k;
+            const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r * .82;
+            if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+          }
+          ctx.strokeStyle = pass ? "rgba(255,255,255," + (.42 * alpha).toFixed(3) + ")"
+                                 : "rgba(140,96,190," + (.07 * alpha).toFixed(3) + ")";
+          ctx.lineWidth = pass ? 1 : 5;
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
       for (const q of st.p){
         q.a += q.sp * dt * (1 + 60 / (q.r + 40));
         q.r -= q.pull * dt;
@@ -3576,7 +3641,8 @@ function fxVortex(stage, palName){
         ctx.globalAlpha = q.a2 * clamp01(q.r / 60);
         ctx.translate(cx + Math.cos(q.a) * q.r, cy + Math.sin(q.a) * q.r * .82);
         ctx.rotate(q.a + Math.PI / 2 + q.rot * .2);
-        ctx.drawImage(q.set || set[q.lod], -sz / 2, -sz / 2, sz, sz);
+        ctx.scale(Math.max(.18, Math.abs(Math.cos(t * q.tb + q.ph))), 1);
+        ctx.drawImage(q.set[q.lod], -sz / 2, -sz / 2, sz, sz);
         ctx.restore();
       }
     });
@@ -3584,26 +3650,27 @@ function fxVortex(stage, palName){
 
 
 
+/* RUGIADA — the rose behind the wet glass. Its focus drifts slowly,
+   sharper and softer, as if an eye were resting on it. */
 function fxDewRose(stage, palName){
   const pal = ROSE_PAL[palName];
+  const rose = roseAtlas(pal, 1, 320)[0];
+  const RP = .15;
+  const near = fxSoften(rose, 2.6, RP), far = fxSoften(rose, 6, RP);
   return fxCanvas(stage,
-    function (){
-      
-
-      const at = roseAtlas(pal, 2, 320);
-      const soft = at.map(function (c){
-        const b = document.createElement("canvas");
-        b.width = c.width; b.height = c.height;
-        const x = b.getContext("2d");
-        x.filter = "blur(3px)";
-        x.drawImage(c, 0, 0);
-        return b;
-      });
-      return { at: soft };
-    },
+    function (){ return {}; },
     function (ctx, w, h, t, st){
       const R = Math.max(w, h) * .46;
-      stampRose(ctx, st.at, w * .40, h * .50, R, .3 + t * .012, 1, .72);
+      const D = R * 2 / .92 * (1 + 2 * RP);
+      const focus = .5 + .5 * Math.sin(t * .16);
+      ctx.save();
+      ctx.translate(w * .40, h * .50);
+      ctx.rotate(.3 + t * .012);
+      ctx.globalAlpha = .72;
+      ctx.drawImage(far, -D / 2, -D / 2, D, D);
+      ctx.globalAlpha = .72 * focus;
+      ctx.drawImage(near, -D / 2, -D / 2, D, D);
+      ctx.restore();
       const lift = ctx.createRadialGradient(w * .30, h * .24, 0, w * .5, h * .5, Math.max(w, h) * .7);
       lift.addColorStop(0, "rgba(255,250,250,.34)");
       lift.addColorStop(1, "rgba(255,240,244,0)");
@@ -3612,74 +3679,197 @@ function fxDewRose(stage, palName){
     });
 }
 
+/* A drop of water on glass over a rose: almost clear, darker at the top
+   rim, with the light gathered at the bottom where it bends through, a
+   bright point of sky, and the rose's colour inside. */
+function bakeDew(size, squash, tint){
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const x = c.getContext("2d");
+  const R = size * .40, cx = size / 2, cy = size / 2;
+  const T = tint || [150, 70, 96];
+  x.save();
+  x.translate(cx, cy); x.scale(1, squash || 1); x.translate(-cx, -cy);
+
+  const sh = x.createRadialGradient(cx + R * .10, cy + R * .22, R * .55, cx + R * .10, cy + R * .22, R * 1.2);
+  sh.addColorStop(0, roseRGB(T, .16));
+  sh.addColorStop(1, roseRGB(T, 0));
+  x.fillStyle = sh;
+  x.beginPath(); x.arc(cx + R * .1, cy + R * .22, R * 1.2, 0, 6.3); x.fill();
+
+  x.save();
+  x.beginPath(); x.arc(cx, cy, R, 0, 6.3); x.clip();
+  const body = x.createRadialGradient(cx, cy + R * .45, R * .1, cx, cy, R * 1.05);
+  body.addColorStop(0,   "rgba(255,255,255,.62)");
+  body.addColorStop(.45, roseRGB(roseMix(T, [255, 255, 255], .6), .16));
+  body.addColorStop(.85, roseRGB(T, .14));
+  body.addColorStop(1,   roseRGB(roseMix(T, [0, 0, 0], .35), .42));
+  x.fillStyle = body;
+  x.fillRect(cx - R, cy - R, R * 2, R * 2);
+  const top = x.createLinearGradient(cx, cy - R, cx, cy);
+  top.addColorStop(0, roseRGB(roseMix(T, [0, 0, 0], .45), .34));
+  top.addColorStop(1, roseRGB(T, 0));
+  x.fillStyle = top;
+  x.fillRect(cx - R, cy - R, R * 2, R);
+  x.restore();
+
+  x.strokeStyle = "rgba(255,255,255,.55)";
+  x.lineWidth = R * .07;
+  x.beginPath(); x.arc(cx, cy, R * .9, Math.PI * .15, Math.PI * .85); x.stroke();
+
+  const pin = x.createRadialGradient(cx - R * .34, cy - R * .40, 0, cx - R * .34, cy - R * .40, R * .28);
+  pin.addColorStop(0,  "rgba(255,255,255,1)");
+  pin.addColorStop(.4, "rgba(255,255,255,.55)");
+  pin.addColorStop(1,  "rgba(255,255,255,0)");
+  x.fillStyle = pin;
+  x.beginPath(); x.arc(cx - R * .34, cy - R * .40, R * .28, 0, 6.3); x.fill();
+  x.restore();
+  return c;
+}
 
 
 
 
 
+
+/* GELO — the rose at the heart of the glass cools from blush to ice, in
+   soft focus, while frost grows in from the edges of the glass: feathery
+   crystals, branching at the angles ice branches at, catching the light.
+   Snow drifts down in front. */
 function fxFrostRose(stage){
-  const flake = flakeSprite ? null : null;
+  const RP = .2;
+  const warm = roseAtlas(ROSE_PAL.blush, 1, 260)[0], cold = roseAtlas(ROSE_PAL.ice, 1, 260)[0];
+  const warmS = fxSoften(warm, 5, RP), coldS = fxSoften(cold, 5, RP);
+  const FLAKE = fxGlow([
+    [0,   "rgba(255,255,255,1)"],
+    [.42, "rgba(240,248,255,.85)"],
+    [.7,  "rgba(140,170,210,.26)"],
+    [1,   "rgba(140,170,210,0)"]
+  ]);
+
+  /* one frost fern: a spine with side branches at 60 degrees, and their
+     own smaller branches; every piece knows when it grows */
+  function fern(x0, y0, a0, L, gen, d0, out){
+    const n = gen ? 5 : 8;
+    let px = x0, py = y0, a = a0;
+    const bend = rnd(-.05, .05);
+    for (let i = 0; i < n; i++){
+      a += bend + rnd(-.06, .06);
+      const len = L / n;
+      const nx = px + Math.cos(a) * len, ny = py + Math.sin(a) * len;
+      const d = d0 + i * len;
+      out.push({ x1: px, y1: py, x2: nx, y2: ny, d: d, w: Math.max(.45, (1.5 - gen * .5) * (1 - i / n * .6)) });
+      /* side branches shorten towards the tip, as a feather's barbs do */
+      if (gen < 2 && i > 0 && i < n - 1){
+        const k = 1 - i / n;
+        for (const sd of [-1, 1]){
+          if (Math.random() < .9) fern(nx, ny, a + sd * 1.047 * rnd(.85, 1), L * (.42 * k + .08), gen + 1, d + len, out);
+        }
+      }
+      px = nx; py = ny;
+    }
+  }
+
   return fxCanvas(stage,
     function (w, h){
-      const n = Math.round((w * h) / 9000), p = [];
+      const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+      const bed = document.createElement("canvas");
+      bed.width = Math.max(1, Math.round(w * dpr)); bed.height = Math.max(1, Math.round(h * dpr));
+      const bx = bed.getContext("2d");
+      bx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      bx.lineCap = "round";
+      const narrow = w < 520;
+      const segs = [];
+      const reach = Math.min(w * (narrow ? .2 : .24), 220);
+      const roots = [[0, 0, .78], [w, 0, 2.36], [0, h, -.78], [w, h, -2.36]];
+      for (let i = 0; i < (narrow ? 3 : 5); i++){
+        const y = rnd(h * .15, h * .9), left = i % 2 === 0;
+        roots.push([left ? 0 : w, y, (left ? 0 : Math.PI) + rnd(-.5, .5)]);
+      }
+      for (const r of roots){
+        const k = r[2];
+        for (let j = 0; j < 2; j++) fern(r[0], r[1], k + rnd(-.45, .45), reach * rnd(.55, 1), 0, rnd(0, 40), segs);
+      }
+      segs.sort(function (a, b){ return a.d - b.d; });
+      const p = [];
+      const n = Math.round((w * h) / 9000);
       for (let i = 0; i < n; i++){
-        p.push({ x: rnd(0, w), y: rnd(-h, h), r: rnd(1.4, 4.4),
-                 v: rnd(10, 38), sw: rnd(10, 40), ph: rnd(0, 6.3), a: rnd(.3, .8) });
+        const depth = Math.random();
+        p.push({ x: rnd(0, w), y: rnd(-h, h), r: 1.2 + depth * 3.4, v: 10 + depth * 30,
+                 sw: rnd(10, 40), ph: rnd(0, 6.3), a: .45 + depth * .5 });
       }
-      const nd = [];
-      for (let i = 0; i < 90; i++){
-        nd.push({ a: rnd(0, 6.3), r: Math.sqrt(Math.random()), t0: rnd(0, 20),
-                  len: rnd(10, 34), w: rnd(.6, 1.8) });
-      }
-      return { p: p, nd: nd, last: 0,
-               at: roseAtlas(ROSE_PAL.blush, 2, 240), ice: roseAtlas(ROSE_PAL.ice, 2, 240) };
+      return { bed: bed, bx: bx, segs: segs, at: 0, p: p, last: 0 };
     },
     function (ctx, w, h, t, st){
       const dt = Math.min(.085, t - st.last); st.last = t;
-      const R = Math.min(w, h) * .29;
+      const R = Math.min(w, h) * .23;
+      const cx = w * .5, cy = h * .46;
       const freeze = clamp01((t - 1) / 22);
-      stampRose(ctx, st.at,  w * .5, h * .47, R, -t * .015, 1, .90);
-      stampRose(ctx, st.ice, w * .5, h * .47, R, -t * .015, 1, freeze * .86);
+      const D = R * 2 / .92 * (1 + 2 * RP);
+      const rot = -t * .015;
 
-       
+      /* the frosted edge of the glass, whitening as the cold sets in */
+      const fr = ctx.createRadialGradient(cx, cy, Math.min(w, h) * .3, cx, cy, Math.max(w, h) * .75);
+      fr.addColorStop(0, "rgba(255,255,255,0)");
+      fr.addColorStop(1, "rgba(250,253,255," + (.5 * freeze).toFixed(3) + ")");
+      ctx.fillStyle = fr;
+      ctx.fillRect(0, 0, w, h);
+
+      /* the rose: a sharp image and a soft one together, so it glows */
+      const Ds = R * 2 / .92;
       ctx.save();
-      ctx.globalCompositeOperation = "lighter";
-      ctx.lineCap = "round";
-      for (const q of st.nd){
-        const g = clamp01((t - q.t0) / 6);
-        if (g <= 0) continue;
-        const r0 = q.r * R * 1.02;
-        const x0 = w * .5 + Math.cos(q.a) * r0, y0 = h * .47 + Math.sin(q.a) * r0 * .9;
-        const L = q.len * g;
-        ctx.strokeStyle = "rgba(226,246,255," + (.30 * g).toFixed(3) + ")";
-        ctx.lineWidth = q.w;
-        ctx.beginPath();
-        ctx.moveTo(x0, y0);
-        ctx.lineTo(x0 - Math.cos(q.a) * L, y0 - Math.sin(q.a) * L * .9);
-        ctx.stroke();
-        for (let k = 1; k <= 2; k++){
-          const f = k / 3, bx = x0 - Math.cos(q.a) * L * f, by = y0 - Math.sin(q.a) * L * .9 * f;
-          const ba = q.a + (k % 2 ? 1 : -1) * 1.0;
-          ctx.beginPath();
-          ctx.moveTo(bx, by);
-          ctx.lineTo(bx - Math.cos(ba) * L * .32, by - Math.sin(ba) * L * .32);
-          ctx.stroke();
-        }
+      ctx.translate(cx, cy);
+      ctx.rotate(rot);
+      ctx.globalAlpha = .34;
+      ctx.drawImage(warm, -Ds / 2, -Ds / 2, Ds, Ds);
+      ctx.globalAlpha = .34 * freeze;
+      ctx.drawImage(cold, -Ds / 2, -Ds / 2, Ds, Ds);
+      ctx.globalAlpha = .46;
+      ctx.drawImage(warmS, -D / 2, -D / 2, D, D);
+      ctx.globalAlpha = .46 * freeze;
+      ctx.drawImage(coldS, -D / 2, -D / 2, D, D);
+      ctx.restore();
+
+      /* the frost, grown onto its own sheet and kept */
+      const grow = 30 * t;
+      const bx = st.bx;
+      while (st.at < st.segs.length && st.segs[st.at].d <= grow){
+        const s = st.segs[st.at++];
+        bx.strokeStyle = "rgba(140,168,204,.20)";
+        bx.lineWidth = s.w + 1.4;
+        bx.beginPath(); bx.moveTo(s.x1 + .5, s.y1 + .6); bx.lineTo(s.x2 + .5, s.y2 + .6); bx.stroke();
+        bx.strokeStyle = "rgba(255,255,255,.95)";
+        bx.lineWidth = s.w;
+        bx.beginPath(); bx.moveTo(s.x1, s.y1); bx.lineTo(s.x2, s.y2); bx.stroke();
       }
+      ctx.drawImage(st.bed, 0, 0, w, h);
+
+      /* points of light where the crystals catch it */
+      for (let k = 0; k < 6; k++){
+        const s = st.segs[(Math.floor(t * .7 + k * 97.3) * 131 + k * 17) % Math.max(1, st.at)];
+        if (!s) continue;
+        const g = Math.sin((t * .7 + k * .37) % 1 * Math.PI);
+        const gs = 6 + g * 10;
+        ctx.globalAlpha = g * .9;
+        ctx.drawImage(FLAKE, s.x2 - gs / 2, s.y2 - gs / 2, gs, gs);
+      }
+
       for (const q of st.p){
         q.y += q.v * dt;
         if (q.y > h + 6){ q.y = -6; q.x = rnd(0, w); }
-        const gs = q.r * 5;
-        ctx.globalAlpha = q.a * freeze;
-        ctx.drawImage(STAR_GLOW, q.x + Math.sin(t * .5 + q.ph) * q.sw - gs / 2, q.y - gs / 2, gs, gs);
+        const gs = q.r * 4;
+        ctx.globalAlpha = q.a * (.35 + .65 * freeze);
+        ctx.drawImage(FLAKE, q.x + Math.sin(t * .5 + q.ph) * q.sw - gs / 2, q.y - gs / 2, gs, gs);
       }
       ctx.globalAlpha = 1;
-      ctx.restore();
     });
 }
 
 
 
+/* OMBRA — the shadow of roses and stems on the glass, swaying as if a
+   breeze moved them outside a window, and patches of sun coming through
+   the leaves, slowly shifting. */
 function fxRoseShadow(stage){
   return fxCanvas(stage,
     function (w, h){
@@ -3688,8 +3878,6 @@ function fxRoseShadow(stage){
         v.push(vineMake(rnd(-40, w * .3), h + 20, -Math.PI / 2 + rnd(-.6, .2),
                         h * rnd(.9, 1.4), w, h, i * 71 + 13));
       }
-      
-
       const sil = document.createElement("canvas");
       sil.width = w; sil.height = h;
       const sx = sil.getContext("2d");
@@ -3698,21 +3886,14 @@ function fxRoseShadow(stage){
       for (const vv of v) vineDraw(sx, vv, vv.len, "rgba(26,30,44,1)", "rgba(26,30,44,1)");
       drawRose(sx, w * .30, h * .30, R * .62, .5, .92, flat, 3);
       drawRose(sx, w * .74, h * .60, R * .46, -.4, .84, flat, 9);
-      
-
-      const soft = [];
-      for (let k = 0; k < 2; k++){
-        const c = document.createElement("canvas");
-        c.width = w; c.height = h;
-        const cx2 = c.getContext("2d");
-        cx2.filter = "blur(" + (3 + k * 5) + "px)";
-        cx2.drawImage(sil, 0, 0);
-        soft.push(c);
+      const soft = [fxSoften(sil, 3.5, 0), fxSoften(sil, 9, 0)];
+      const flecks = [];
+      for (let i = 0; i < 9; i++){
+        flecks.push({ x: rnd(0, w), y: rnd(0, h), r: rnd(30, 90), ph: rnd(0, 6.3), sp: rnd(.15, .35) });
       }
-      return { v: v, sil: sil, soft: soft };
+      return { soft: soft, flecks: flecks };
     },
     function (ctx, w, h, t, st){
-       
       const sway = Math.sin(t * .11);
       const mix = .5 + .5 * Math.sin(t * .09);
 
@@ -3721,10 +3902,22 @@ function fxRoseShadow(stage){
       ctx.transform(1, 0, sway * .34, 1, 0, 0);
       ctx.translate(-w * .5, -h * .5);
       ctx.globalAlpha = .54 * (1 - mix);
-      ctx.drawImage(st.soft[0], 0, 0);
+      ctx.drawImage(st.soft[0], 0, 0, w, h);
       ctx.globalAlpha = .54 * mix;
-      ctx.drawImage(st.soft[1], 0, 0);
+      ctx.drawImage(st.soft[1], 0, 0, w, h);
       ctx.restore();
+
+      /* sun through the leaves: soft warm patches that drift and brighten */
+      for (const f of st.flecks){
+        const x = f.x + Math.sin(t * f.sp + f.ph) * 40 + sway * w * .06;
+        const y = f.y + Math.cos(t * f.sp * .8 + f.ph) * 26;
+        const a = .5 + .5 * Math.sin(t * f.sp * 2.1 + f.ph * 2);
+        const g = ctx.createRadialGradient(x, y, 0, x, y, f.r);
+        g.addColorStop(0, "rgba(255,246,222," + (.42 * a).toFixed(3) + ")");
+        g.addColorStop(1, "rgba(255,246,222,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(x - f.r, y - f.r, f.r * 2, f.r * 2);
+      }
 
       const beam = ctx.createLinearGradient(0, 0, w, h);
       beam.addColorStop(0,   "rgba(255,250,240,.30)");
@@ -3849,6 +4042,20 @@ function flutterNew(x, y, size){
   return { x: x, y: y, xc: x, vy: rnd(0, 6), term: rnd(28, 44), ph: rnd(0, 6.3),
            w: rnd(1.3, 2.1), amp: rnd(18, 42), drift: rnd(-6, 10), r0: rnd(0, 6.3),
            rot: 0, spin: rnd(-.25, .25), fp: rnd(0, 6.3), flip: 1, s: size, age: 0 };
+}
+
+/* The shadow a petal throws on the glass: its outline, filled dark and
+   softened. (A dark petal would not do: its tip is lighter than its base.) */
+function petalShade(size, k, pad){
+  const S = size || 96;
+  const c = fxSprite(S, function (x){
+    const L = S * .44, W = S * .26;
+    x.translate(0, L * .5);
+    x.fillStyle = "rgba(20,22,34,1)";
+    rosePetal(x, L * 1.5, W, -1);
+    x.fill();
+  });
+  return fxSoften(c, k || 4, pad || 0);
 }
 
 /* a glow of any colour, for motes and sparks */
@@ -4529,7 +4736,7 @@ function fxWither(stage){
   const dried = roseAtlas(ROSE_PAL.dried, 10, 260);
   const PF = petalSprite(ROSE_PAL.dusk, 96), PD = petalSprite(ROSE_PAL.dried, 96);
   const SP = .3;
-  const shade = fxSoften(petalSprite(ROSE_PAL.black, 96), 4, SP);
+  const shade = petalShade(96, 4, SP);
   const roseShade = fxSoften(roseAtlas(ROSE_PAL.black, 1, 200)[0], 7, .3);
 
   return fxCanvas(stage,
@@ -4652,7 +4859,7 @@ function fxRipplesDeep(stage){
   const petal = petalSprite(ROSE_PAL.blush, 96);
   const petalSoft = fxSoften(petal, 5, PP);
   const petalSharp = fxSoften(petal, 1, PP);
-  const shade = fxSoften(petalSprite(ROSE_PAL.black, 96), 4, PP);
+  const shade = petalShade(96, 4, PP);
 
   function ring(ctx, x, y, r, lw, a){
     const hi = ctx.createLinearGradient(x - r, y - r, x + r, y + r);
@@ -4800,7 +5007,8 @@ const THEMES = {
     rim: "rgba(206,112,140,.42)",
     build: function (stage){
       fxWash(stage, "linear-gradient(172deg, rgba(252,232,238,.44) 0%, rgba(244,212,224,.26) 54%, rgba(232,192,206,.18) 100%)");
-      return [fxPetalRain(stage), fxPetalRain(fxNear(), { sharp: true })];
+      return [fxPetalRain(stage), fxPetalRain(fxNear(), { sharp: true }),
+              fxBokehPetals(fxNear(), ["blush", "white", "blush"])];
     }
   },
   spine: {
@@ -4831,7 +5039,7 @@ const THEMES = {
     rim: "rgba(190,206,226,.40)",
     build: function (stage){
       fxWash(stage, "linear-gradient(168deg, rgba(250,244,246,.40) 0%, rgba(236,226,232,.22) 58%, rgba(218,208,218,.16) 100%)");
-      return [fxDewRose(stage, "blush"), fxGlassDrops(fxNear(true), { dense: 2600, big: 8 })];
+      return [fxDewRose(stage, "blush"), fxGlassDrops(fxNear(true), { dense: 2600, big: 8, tint: [168, 74, 104] })];
     }
   },
   brace: {
@@ -4857,7 +5065,7 @@ const THEMES = {
       fxWash(stage, "linear-gradient(180deg, rgba(240,244,248,.4) 0%, rgba(200,205,215,.2) 100%)");
       return [
         fxShatter(stage, false), 
-        fxPetalRain(stage, { pals: ["black"], sharp: false }) 
+        fxPetalRain(stage, { pals: ["black", "wine", "black"], sharp: false, sheen: .1 }) 
       ];
     }
   },
@@ -4867,8 +5075,8 @@ const THEMES = {
     build: function(stage) {
       fxWash(stage, "radial-gradient(120% 90% at 50% 50%, rgba(255,250,240,.4) 0%, rgba(235,220,200,.2) 100%)");
       return [
-        fxShatter(stage, true),       
-        fxBloomRose(stage, "gold")    
+        fxShatter(stage, true),
+        fxGoldLeaf(stage)
       ];
     }
   },
@@ -4891,10 +5099,9 @@ const THEMES = {
     label: "Aurora",
     rim: "rgba(160,255,200,.3)",
     build: function(stage) {
-      fxWash(stage, "radial-gradient(120% 100% at 50% 100%, rgba(230,240,235,.5) 0%, rgba(200,210,220,.2) 100%)");
+      fxWash(stage, "linear-gradient(180deg, rgba(200,214,236,.4) 0%, rgba(230,238,242,.40) 45%, rgba(240,244,246,.30) 100%)");
       return [
-        fxAurora(stage), 
-        fxVortex(stage, "ice") 
+        fxAurora(stage)
       ];
     }
   },
@@ -4960,37 +5167,82 @@ function unmountTheme(){
 }
 
 
+/* AURORA — curtains of light hanging in the upper part of the glass:
+   green at their lower hem, rising into violet, made of fine vertical
+   rays, folding and drifting slowly, brighter and fainter by turns. */
 function fxAurora(stage) {
+  const strip = (function (){
+    const c = document.createElement("canvas");
+    c.width = 4; c.height = 256;
+    const x = c.getContext("2d");
+    const g = x.createLinearGradient(0, 0, 0, 256);
+    g.addColorStop(0,   "rgba(170,110,230,0)");
+    g.addColorStop(.35, "rgba(160,110,226,.55)");
+    g.addColorStop(.7,  "rgba(70,200,190,.8)");
+    g.addColorStop(.92, "rgba(90,230,160,1)");
+    g.addColorStop(.97, "rgba(200,255,230,1)");
+    g.addColorStop(1,   "rgba(90,230,160,0)");
+    x.fillStyle = g;
+    x.fillRect(0, 0, 4, 256);
+    return c;
+  })();
+  const L = .4;
   return fxCanvas(stage,
-    function (w, h) { return {}; },
-    function (ctx, w, h, t, st) {
-      ctx.globalCompositeOperation = "lighter";
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      
-      const ribbons = [
-        { c: "rgba(40, 240, 150, 0.02)", freq: 0.002, speed: 0.4 },
-        { c: "rgba(60, 120, 240, 0.015)", freq: 0.003, speed: 0.3 },
-        { c: "rgba(180, 40, 220, 0.015)", freq: 0.0015, speed: 0.5 }
-      ];
-      
-      for (let i = 0; i < ribbons.length; i++) {
-        const r = ribbons[i];
-        ctx.beginPath();
-        for (let x = -50; x <= w + 50; x += 40) {
-          const n = fbmP(x * r.freq, t * 0.05 + i * 10, 7, 3, 100);
-          const sway = Math.sin(x * 0.003 - t * r.speed + i) * h * 0.25;
-          const y = h * 0.5 + sway + (n - 0.5) * h * 0.45;
-          
-          if (x === -50) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.lineWidth = 80 + i * 20;
-        ctx.strokeStyle = r.c;
-        ctx.stroke();
+    function (w, h){
+      const low = document.createElement("canvas");
+      low.width = Math.max(1, Math.round(w * L)); low.height = Math.max(1, Math.round(h * L));
+      const stars = [];
+      for (let i = 0; i < (w < 520 ? 26 : 50); i++){
+        const y = Math.pow(Math.random(), 1.6) * h * .3;
+        stars.push({ x: rnd(0, w), y: y, s: rnd(1.5, 4), ph: rnd(0, 6.3), tw: rnd(.5, 2) });
       }
-    }, { fade: 0.08 } 
-  );
+      return { low: low, lx: low.getContext("2d"), stars: stars };
+    },
+    function (ctx, w, h, t, st){
+      const lx = st.lx, W = st.low.width, H = st.low.height;
+      lx.clearRect(0, 0, W, H);
+
+      /* night at the top of the glass, melting into the milk below */
+      const sky = ctx.createLinearGradient(0, 0, 0, h * .52);
+      sky.addColorStop(0,   "rgba(10,18,40,.94)");
+      sky.addColorStop(.3,  "rgba(18,32,62,.80)");
+      sky.addColorStop(.62, "rgba(54,78,118,.30)");
+      sky.addColorStop(1,   "rgba(120,140,170,0)");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, w, h * .52);
+      for (const q of st.stars){
+        ctx.globalAlpha = (.35 + .65 * (.5 + .5 * Math.sin(t * q.tw + q.ph))) * (1 - q.y / (h * .3)) ;
+        ctx.drawImage(STAR_GLOW, q.x - q.s / 2, q.y - q.s / 2, q.s, q.s);
+      }
+      ctx.globalAlpha = 1;
+      const curtains = [
+        { base: .26, hgt: .24, seed: 3, sp: .045, a: 1.15 },
+        { base: .33, hgt: .2,  seed: 9, sp: .065, a: .75 }
+      ];
+      for (const c of curtains){
+        for (let x = -2; x < W + 2; x += 1){
+          const fx = x / W;
+          /* the hem folds like cloth hanging in a slow wind */
+          const by = H * (c.base + Math.sin(fx * 3.1 + t * .13 + c.seed) * .07
+                                 + (fbm(fx * 2.4 + t * c.sp, c.seed, c.seed, 3) - .5) * .16);
+          const hh = H * c.hgt * (.65 + .7 * fbm(fx * 2.6 + 10, t * .05, c.seed + 4, 2));
+          /* fine rays, uneven in width and brightness, shimmering */
+          const ray = Math.pow(vnoise(fx * 110 + t * .5, t * .9, c.seed + 2), 1.5) * .75
+                    + vnoise(fx * 26 - t * .3, t * .4, c.seed + 5) * .45;
+          const lit = Math.pow(clamp01(fbm(fx * 3.2 - t * c.sp * 1.5, t * .07, c.seed + 9, 3) * 1.7 - .3), 1.4);
+          const a = Math.min(1, c.a * lit * ray);
+          if (a < .01) continue;
+          lx.globalAlpha = a;
+          lx.drawImage(strip, x, by - hh, 1.2, hh);
+        }
+      }
+      lx.globalAlpha = 1;
+      /* light added to light, as an aurora is: it glows against the night */
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.drawImage(st.low, 0, 0, w, h);
+      ctx.restore();
+    });
 }
 
 
@@ -4998,42 +5250,41 @@ function fxAurora(stage) {
 
 
 
+/* DOLORE and KINTSUGI — the glass cracks from its edges; in Kintsugi the
+   cracks are filled with gold. Now and then light runs along a crack, as
+   it does along a real break in glass. On a phone the cracks keep to the
+   edges by themselves, so they are shown there too. */
 function fxShatter(stage, isGold) {
-  return fxCanvas(fxNear(false), 
+  const host = fxNear(window.innerWidth <= 720);
+  const lines = [];
+  const GLINT = isGold ? fxGlow([[0, "rgba(255,252,230,1)"], [.3, "rgba(255,214,110,.75)"], [1, "rgba(255,170,40,0)"]])
+                       : fxGlow([[0, "rgba(255,255,255,1)"], [.35, "rgba(220,236,255,.7)"], [1, "rgba(200,220,255,0)"]]);
+  const cracks = fxCanvas(host,
     function (w, h) {
       const nodes = [];
-      
+      lines.length = 0;
       nodes.push({ x: 0, y: 0, a: rnd(0.2, 1.3), gen: 0, delay: 0 });
       nodes.push({ x: w, y: 0, a: rnd(1.8, 2.9), gen: 0, delay: 0 });
       nodes.push({ x: w, y: h, a: rnd(3.3, 4.4), gen: 0, delay: 0 });
       nodes.push({ x: 0, y: h, a: rnd(4.9, 6.0), gen: 0, delay: 0 });
-      
       nodes.push({ x: w/2, y: 0, a: rnd(1.0, 2.0), gen: 0, delay: rnd(0.2, 0.5) });
       nodes.push({ x: 0, y: h/2, a: rnd(-0.5, 0.5), gen: 0, delay: rnd(0.2, 0.5) });
       nodes.push({ x: w, y: h/2, a: rnd(2.6, 3.6), gen: 0, delay: rnd(0.2, 0.5) });
 
-      const lines = [];
       let head = 0;
-      
       const safeX = w * 0.5;
-      const safeRadiusX = w * 0.30; 
-      
+      const safeRadiusX = w * 0.30;
       while (head < nodes.length && nodes.length < 350) {
         const n = nodes[head++];
         if (n.gen > 8) continue;
-        
         if (Math.abs(n.x - safeX) < safeRadiusX) continue;
-        
         const splits = Math.floor(rnd(1, 3));
-        
         for (let i = 0; i < splits; i++) {
           let angle = n.a + (Math.random() < 0.5 ? rnd(-0.8, -0.2) : rnd(0.2, 0.8));
-          
           const len = rnd(25, 75) * (1 - n.gen / 12);
           const nx = n.x + Math.cos(angle) * len;
           const ny = n.y + Math.sin(angle) * len;
           const delay = n.delay + rnd(0.05, 0.15);
-          
           lines.push({ x1: n.x, y1: n.y, x2: nx, y2: ny, t: delay, drawn: false, gen: n.gen });
           nodes.push({ x: nx, y: ny, a: angle, gen: n.gen + 1, delay: delay });
         }
@@ -5043,11 +5294,9 @@ function fxShatter(stage, isGold) {
     function (ctx, w, h, t, st) {
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      
       for (const l of st.lines) {
         if (!l.drawn && t > l.t) {
           l.drawn = true;
-          
           if (isGold) {
             ctx.beginPath();
             ctx.moveTo(l.x1, l.y1);
@@ -5057,7 +5306,6 @@ function fxShatter(stage, isGold) {
             ctx.shadowBlur = 8;
             ctx.lineWidth = Math.max(0.4, 3.0 - l.gen * 0.3);
             ctx.stroke();
-            
             ctx.shadowBlur = 0;
             ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
             ctx.lineWidth = Math.max(0.1, 1.2 - l.gen * 0.2);
@@ -5069,7 +5317,6 @@ function fxShatter(stage, isGold) {
             ctx.strokeStyle = "rgba(28, 36, 50, 0.4)";
             ctx.lineWidth = Math.max(0.5, 2.5 - l.gen * 0.3);
             ctx.stroke();
-            
             ctx.beginPath();
             ctx.moveTo(l.x1 - 0.8, l.y1 - 0.8);
             ctx.lineTo(l.x2 - 0.8, l.y2 - 0.8);
@@ -5081,6 +5328,82 @@ function fxShatter(stage, isGold) {
       }
     }, { keep: true }
   );
+
+  /* light running along the cracks: a bright point follows a crack from
+     its root outwards, crack after crack */
+  const glints = fxCanvas(host,
+    function (){ return { g: [], next: 1.2, last: 0 }; },
+    function (ctx, w, h, t, st){
+      const dt = Math.min(.085, t - st.last); st.last = t;
+      if (t >= st.next && lines.length){
+        st.next = t + rnd(.5, 1.4);
+        const start = lines[(Math.random() * lines.length) | 0];
+        const path = [start];
+        let cur = start;
+        for (let k = 0; k < 6; k++){
+          const nx = lines.filter(function (l){ return Math.abs(l.x1 - cur.x2) < .5 && Math.abs(l.y1 - cur.y2) < .5; });
+          if (!nx.length) break;
+          cur = nx[(Math.random() * nx.length) | 0];
+          path.push(cur);
+        }
+        st.g.push({ path: path, age: 0, dur: .45 * path.length + .3 });
+      }
+      for (let i = st.g.length - 1; i >= 0; i--){
+        const g = st.g[i];
+        g.age += dt;
+        const f = g.age / g.dur;
+        if (f >= 1){ st.g.splice(i, 1); continue; }
+        const at = f * g.path.length;
+        const l = g.path[Math.min(g.path.length - 1, Math.floor(at))];
+        const u = at - Math.floor(at);
+        const x = l.x1 + (l.x2 - l.x1) * u, y = l.y1 + (l.y2 - l.y1) * u;
+        const s = (isGold ? 18 : 14) * Math.sin(f * Math.PI);
+        ctx.globalAlpha = Math.sin(f * Math.PI);
+        ctx.drawImage(GLINT, x - s / 2, y - s / 2, s, s);
+      }
+      ctx.globalAlpha = 1;
+    });
+
+  return function stop(){ cracks(); glints(); };
+}
+
+/* KINTSUGI — flakes of gold leaf, turning slowly in the air, flashing
+   as they catch the light. */
+function fxGoldLeaf(stage){
+  return fxCanvas(stage,
+    function (w, h){
+      const f = [];
+      for (let i = 0; i < (w < 520 ? 12 : 22); i++){
+        const pts = [];
+        const n = 5 + ((Math.random() * 3) | 0);
+        for (let k = 0; k < n; k++){ const a = k / n * 6.283; pts.push([Math.cos(a) * rnd(.55, 1), Math.sin(a) * rnd(.55, 1)]); }
+        f.push({ x: rnd(0, w), y: rnd(0, h), s: rnd(3, 8), vy: rnd(4, 12), sw: rnd(10, 30), ph: rnd(0, 6.3),
+                 rot: rnd(0, 6.3), vr: rnd(-.6, .6), fl: rnd(.6, 1.6), pts: pts });
+      }
+      return { f: f, last: 0 };
+    },
+    function (ctx, w, h, t, st){
+      const dt = Math.min(.085, t - st.last); st.last = t;
+      for (const q of st.f){
+        q.y += q.vy * dt; q.rot += q.vr * dt;
+        if (q.y > h + 10){ q.y = -10; q.x = rnd(0, w); }
+        const turn = Math.cos(t * q.fl + q.ph);
+        const shine = Math.pow(Math.abs(turn), 6);
+        ctx.save();
+        ctx.translate(q.x + Math.sin(t * .4 + q.ph) * q.sw, q.y);
+        ctx.rotate(q.rot);
+        ctx.scale(Math.max(.15, Math.abs(turn)), 1);
+        ctx.fillStyle = roseRGB(roseMix([176, 122, 30], [255, 236, 170], shine), .85);
+        ctx.beginPath();
+        for (let k = 0; k < q.pts.length; k++){
+          const p = q.pts[k];
+          if (k) ctx.lineTo(p[0] * q.s, p[1] * q.s); else ctx.moveTo(p[0] * q.s, p[1] * q.s);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    });
 }
 
 
