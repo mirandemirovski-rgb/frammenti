@@ -240,6 +240,7 @@ function onOpen() {
     .addItem('Temi disponibili', 'showThemes')
     .addItem('Metti il menu a tendina dei temi', 'setupThemeDropdowns')
     .addSeparator()
+    .addItem('Correggi gli accenti italiani (tutti i testi)', 'fixItalianAccentsAll')
     .addItem('Correggi i segni croati', 'hrOpenPanel')
     .addToUi();
 }
@@ -322,4 +323,123 @@ function setupThemeDropdowns() {
     '\n\nClicca C1 in una scheda e scegli il tema.\n' +
     'Rilancia questa voce dopo aver aggiunto nuove schede.',
     ui.ButtonSet.OK);
+}
+/* ------------------------------------------------- Italian accents, all at once */
+
+/**
+ * Frammenti -> Correggi gli accenti italiani (tutti i testi)
+ *
+ * Every Italian song at once: wherever an apostrophe stands in for an accent
+ * at the end of a word, the accent goes in and the apostrophe goes away.
+ *   piu' -> più    e' -> è    E' -> È    perche' -> perché    citta' -> città
+ *   ANDRO' -> ANDRÒ    li' -> lì    caffe' -> caffè
+ *
+ * What is never touched:
+ *   - an apostrophe followed by a letter, which is an elision: l'amore, c'è
+ *   - a word ending in a consonant: L' anima, quell' universo
+ *   - the words where the apostrophe is the right spelling: po' mo' va' fa'
+ *     da' di' sta' to' be' ca' pie'
+ *   - tabs that are not Italian (B1, or the words themselves, decide), so an
+ *     English "lovin'" or a Croatian line is safe
+ *   - cells with a formula, numbers and dates
+ *
+ * Nothing is written until you have seen the list and said yes. Undo, if ever
+ * needed: File -> Version history.
+ */
+var IT_APOS_KEEP = ['po', 'mo', 'va', 'fa', 'da', 'di', 'sta', 'to', 'be', 'ca', 'pie'];
+
+/** The accented form of one word written with an apostrophe, or null to leave it. */
+function itAccentWord_(word) {
+  var bare = word.slice(0, -1);
+  var low = bare.toLowerCase();
+  if (IT_APOS_KEEP.indexOf(low) >= 0) return null;
+  if (/[àèéìòùáíóú]/i.test(bare)) return bare;          // accent already there: drop the apostrophe
+
+  var last = bare.charAt(bare.length - 1);
+  var v = last.toLowerCase();
+  var caps = last !== v;
+  var stem = bare.slice(0, -1);
+  var grave = { a: 'à', i: 'ì', o: 'ò', u: 'ù', e: 'è' };
+  if (!grave[v]) return null;                            // ends in a consonant: an elision, leave it
+
+  if (v === 'e' && (/(?:ch|tr)e$/.test(low) || low === 'ne' || low === 'se')) {
+    return stem + (caps ? 'É' : 'é');                    // perché, finché, ventitré, né, sé
+  }
+  var out = grave[v];
+  return stem + (caps ? out.toUpperCase() : out);
+}
+
+/** One line with every accent put in; `found` collects what changed. */
+function itAccentLine_(text, found) {
+  var re = /[A-Za-zÀ-ɏ]+['’´](?![A-Za-zÀ-ɏ])/g;
+  return String(text).replace(re, function (w) {
+    var to = itAccentWord_(w);
+    if (to === null) return w;
+    var key = w.replace(/[’´]$/, "'") + '  ->  ' + to;
+    found[key] = (found[key] || 0) + 1;
+    return to;
+  });
+}
+
+/** Is this tab Italian? B1 first, then the words, using the corrector's own judge. */
+function itIsItalianTab_(b1, words) {
+  if (typeof hrLangOf === 'function') return hrLangOf(b1, words) === 'it';
+  return /^(it|ita|italiano|italian)$/i.test(String(b1 || '').trim());
+}
+
+function fixItalianAccentsAll() {
+  var ui = SpreadsheetApp.getUi();
+  var sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
+  var plan = [], found = {}, words = 0;
+
+  for (var i = 0; i < sheets.length; i++) {
+    var sh = sheets[i];
+    if (isSkippedTab(sh.getName())) continue;
+    var last = sh.getLastRow();
+    if (last < 1) continue;
+
+    var range = sh.getRange(1, 1, last, 1);
+    var values = range.getValues();
+    var formulas = range.getFormulas();
+    var b1 = sh.getLastColumn() >= 2 ? sh.getRange(1, 2).getDisplayValue() : '';
+
+    var text = [];
+    for (var r = 0; r < values.length; r++) if (typeof values[r][0] === 'string') text.push(values[r][0]);
+    if (!itIsItalianTab_(b1, text.join(' '))) continue;
+
+    var changed = false, here = {};
+    for (var r2 = 0; r2 < values.length; r2++) {
+      var v = values[r2][0];
+      if (typeof v !== 'string' || formulas[r2][0]) continue;
+      var fixed = itAccentLine_(v, here);
+      if (fixed !== v) { values[r2][0] = fixed; changed = true; }
+    }
+    if (!changed) continue;
+
+    for (var k in here) { found[k] = (found[k] || 0) + here[k]; words += here[k]; }
+    plan.push({ sheet: sh, range: range, values: values });
+  }
+
+  if (!plan.length) {
+    ui.alert('Accenti italiani', 'Nessun accento da correggere: i testi italiani sono già a posto.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var list = Object.keys(found).sort(function (a, b) { return found[b] - found[a]; });
+  var shown = list.slice(0, 18).map(function (k) { return '   ' + k + (found[k] > 1 ? '   (' + found[k] + ')' : ''); });
+  if (list.length > 18) shown.push('   … e altre ' + (list.length - 18));
+
+  var names = plan.map(function (p) { return p.sheet.getName(); });
+  var answer = ui.alert('Accenti italiani',
+    words + (words === 1 ? ' parola' : ' parole') + ' in ' + plan.length +
+    (plan.length === 1 ? ' testo' : ' testi') + ':\n\n' + shown.join('\n') +
+    '\n\nTesti: ' + names.join(', ') +
+    '\n\nCorreggo tutto adesso?\n(Si può sempre tornare indietro da File -> Cronologia versioni.)',
+    ui.ButtonSet.YES_NO);
+  if (answer !== ui.Button.YES) return;
+
+  for (var p = 0; p < plan.length; p++) plan[p].range.setValues(plan[p].values);
+  ui.alert('Accenti italiani', 'Fatto: ' + words + (words === 1 ? ' parola corretta' : ' parole corrette') +
+    ' in ' + plan.length + (plan.length === 1 ? ' testo.' : ' testi.') +
+    '\nRicarica la raccolta per vederli.', ui.ButtonSet.OK);
 }
