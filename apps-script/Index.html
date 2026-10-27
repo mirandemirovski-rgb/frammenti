@@ -1622,6 +1622,225 @@ button, input{ -webkit-tap-highlight-color: transparent; }
   .veil .aura{ animation: none; opacity: 1; transform: none; }
 }
 
+/* =========================================================
+   ORO — kintsugi.
+   The collection as one piece of white glazed porcelain that
+   was broken and mended with gold. The black rose carries gold
+   seams; seams spread from it across the glaze; every song is
+   a shard with a gilded edge and its own golden scar. Light
+   runs along the gold now and then.
+   Everything here is under .oro, which the script sets when
+   ORO.on is true; with it off the page is exactly as before.
+   ========================================================= */
+:root{
+  --gold:       #C39A45;
+  --gold-hi:    #F4DE9C;
+  --gold-deep:  #8C6824;
+  --gold-rgb:   195,154,69;
+  --ink-deep:   #16120F;
+  --pearl:      #F1EFEB;
+}
+
+/* ---- the glaze: a warmer, pearlier white, and silk light gliding over it ---- */
+.oro body{ background: var(--pearl); }
+.oro body::before{
+  background:
+    radial-gradient(52% 38% at 18% 14%,  rgba(255,255,255,.92), transparent 70%),
+    radial-gradient(44% 34% at 84% 30%,  rgba(226,226,236,.55), transparent 72%),
+    radial-gradient(58% 40% at 70% 82%,  rgba(255,255,255,.78), transparent 74%),
+    radial-gradient(48% 36% at 24% 72%,  rgba(232,228,222,.55), transparent 72%),
+    radial-gradient(120% 74% at 50% 2%,   #FAF9F6, transparent 62%),
+    radial-gradient(130% 92% at 50% 108%, #E2DFD9, transparent 58%);
+}
+.silk{
+  position: fixed;
+  inset: -20% -40%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(112deg,
+      transparent 30%,
+      rgba(255,255,255,.55) 41%,
+      rgba(255,253,248,.22) 46%,
+      transparent 54%),
+    linear-gradient(112deg,
+      transparent 58%,
+      rgba(255,255,255,.35) 66%,
+      transparent 72%);
+  animation: silkGlide 34s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes silkGlide{
+  from{ transform: translate3d(-12%, -2%, 0); }
+  to  { transform: translate3d(12%, 2%, 0); }
+}
+
+/* ---- the title catches gold, not grey, as the light passes ---- */
+@keyframes shine{
+  0%, 78%, 100%{ color: var(--ink); }
+  86%          { color: var(--gold); }
+}
+.oro .hero h1 .lt{ color: var(--ink-deep); }
+.oro .hero .sub, .oro .signature{ color: #6A5A44; }
+
+/* ---- gold drawn slowly, and light running along it ---- */
+.oro .kin path, .oro .seams path{ fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.oro .kin .b, .oro .seams .b{ stroke: var(--gold); }
+.oro .kin .h, .oro .seams .h{ stroke: var(--gold-hi); }
+.oro .kin .run, .oro .seams .run{
+  stroke: #FFF8E2;
+  stroke-dasharray: 3 97;
+  stroke-dashoffset: 103;
+  opacity: 0;
+  filter: drop-shadow(0 0 2px rgba(255,214,120,.95));
+}
+.oro .kin .run.go, .oro .seams .run.go{ animation: oroRun var(--rd, 1800ms) cubic-bezier(.45,.05,.4,1) forwards; }
+@keyframes oroRun{
+  0%  { stroke-dashoffset: 103; opacity: 0; }
+  8%  { opacity: 1; }
+  90% { opacity: 1; }
+  100%{ stroke-dashoffset: -2; opacity: 0; }
+}
+.oro .draw{ stroke-dasharray: 101; stroke-dashoffset: 101; }
+.oro .drawn .draw{ animation: oroDraw var(--dd, 3200ms) cubic-bezier(.35,.05,.25,1) var(--dl, 0ms) forwards; }
+@keyframes oroDraw{ to{ stroke-dashoffset: 0; } }
+
+/* ---- the seams spreading from the rose across the glaze ---- */
+.seams{
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.seams .b{ stroke-width: 1.1; opacity: .8; filter: drop-shadow(0 1px 0 rgba(120,90,30,.18)); }
+.seams .h{ stroke-width: .45; opacity: .8; }
+.seams .run{ stroke-width: 2.2; }
+
+/* ---- the rose, mended ---- */
+.rose .kin .b{ stroke-width: 3.4; }
+.rose .kin .h{ stroke-width: 1.2; }
+.rose .kin .run{ stroke-width: 4.4; }
+
+/* ---- the songs: shards of glazed porcelain with gilded edges ---- */
+.oro .grid{ gap: clamp(12px, 1.7vw, 18px); }
+.oro .grid > li{ filter: drop-shadow(5px 8px 9px rgba(120,110,96,.20)) drop-shadow(1px 2px 1px rgba(120,110,96,.14)); }
+.oro .pane{
+  border-radius: 0;
+  clip-path: var(--shard);
+  background:
+    radial-gradient(120% 90% at 22% 12%, rgba(255,255,255,.98), rgba(255,255,255,0) 60%),
+    linear-gradient(158deg, #FBFAF8 0%, #F2F0EC 48%, #E9E6E1 100%);
+  -webkit-backdrop-filter: none;
+          backdrop-filter: none;
+  box-shadow: none;
+  min-height: 112px;
+  padding: 20px 14px 18px;
+}
+.oro .pane:hover{ box-shadow: none; }
+.oro .pane::before, .oro .pane .facet{ display: none; }
+.oro .pane .t{
+  color: var(--ink-deep);
+  font-weight: 600;
+  text-shadow: 0 1px 0 rgba(255,255,255,.95), 0 -1px 0 rgba(60,46,30,.10);
+}
+.oro .pane .lg{
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-top: 7px;
+  font-size: .5rem;
+  font-weight: 600;
+  letter-spacing: .34em;
+  text-indent: .34em;
+  text-transform: uppercase;
+  color: #A3803C;
+}
+.oro .pane .kin{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.oro .pane .kin .rim{ stroke-width: 2.6; }
+.oro .pane .kin .b{ stroke-width: 1.5; }
+.oro .pane .kin .h{ stroke-width: .5; opacity: .85; }
+.oro .pane .kin .run{ stroke-width: 2.6; }
+.oro .pane:hover .kin .rim, .oro .pane:focus-visible .kin .rim{ stroke: #D8B25C; }
+.oro .pane:focus-visible{ outline: none; }
+.oro .pane:focus-visible .kin .rim{ stroke-width: 4; }
+
+/* ---- the quieter gold around the page ---- */
+.oro .rule{
+  height: 9px;
+  background:
+    radial-gradient(circle, var(--gold) 0 1.8px, rgba(var(--gold-rgb),.3) 2.6px, transparent 4.5px) center / 9px 9px no-repeat,
+    linear-gradient(90deg, transparent, rgba(var(--gold-rgb),.75) 30%, rgba(var(--gold-rgb),.75) 70%, transparent) center / 100% 1px no-repeat;
+  box-shadow: none;
+}
+.oro .pager button{ color: var(--gold-deep); box-shadow: var(--lift-rest), inset 0 0 0 1px rgba(var(--gold-rgb),.45); }
+.oro .pager .count, .oro .foot{ color: #9C7C40; }
+.oro .search input:focus{ box-shadow: var(--lift-rest), inset 0 0 0 1px rgba(var(--gold-rgb),.5); }
+
+/* ---- the open song, in gold ---- */
+.oro .sheet::after{
+  background:
+    conic-gradient(from var(--rimA) at 50% 50%,
+      rgba(255,250,236,1)       0deg,
+      rgba(var(--gold-rgb),.55) 64deg,
+      rgba(140,104,36,.55)    148deg,
+      rgba(var(--gold-rgb),.35) 196deg,
+      rgba(255,246,222,.98)   238deg,
+      rgba(var(--gold-rgb),.5)  312deg,
+      rgba(255,250,236,1)     360deg);
+}
+.oro.oro-ink .sheet-head h2{ color: var(--ink-deep); }
+.oro.oro-ink .sheet-next{ color: var(--ink-deep); }
+.oro .title-shine{
+  background: linear-gradient(105deg,
+      transparent 0%, transparent 40%,
+      rgba(214,170,80,0)    42%,
+      rgba(236,196,104,.95) 47%,
+      rgba(255,244,210,1)   50%,
+      rgba(236,196,104,.95) 53%,
+      rgba(214,170,80,0)    58%,
+      transparent 60%, transparent 100%) no-repeat;
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+          background-clip: text;
+}
+.oro .close{ color: var(--gold-deep); }
+
+/* the open song sits in the same warm pearl as the page */
+.oro .veil{
+  background:
+    radial-gradient(125% 95% at 50% 44%,
+      rgba(250,248,244,.72) 0%,
+      rgba(238,235,229,.84) 58%,
+      rgba(220,214,204,.92) 100%);
+}
+.oro .stage{ background: var(--pearl); }
+.oro .frost{
+  background:
+    linear-gradient(150deg,
+      rgba(255,255,255,.36) 0%,
+      rgba(255,253,248,.12) 28%,
+      rgba(246,238,222,.14) 56%,
+      rgba(255,255,255,.10) 78%,
+      rgba(255,252,246,.22) 100%);
+}
+
+@media (prefers-reduced-motion: reduce){
+  .silk{ animation: none; }
+  .oro .draw{ stroke-dashoffset: 0; }
+  .oro .kin .run, .oro .seams .run{ display: none; }
+}
+
 </style>
 </head>
 <body>
@@ -2120,6 +2339,7 @@ function paint(){
     b.className = "pane";
     b.style.setProperty("--i", n);
     b.style.setProperty("--accent", `var(--lang-${s.lang})`);
+    b.dataset.lang = s.lang;
     const facet = document.createElement("span");
     facet.className = "facet";
     const t = document.createElement("span");
@@ -5976,6 +6196,7 @@ const seer = ("IntersectionObserver" in window) ? new IntersectionObserver(funct
 function prepPane(b){
   if (b._wonder) return;
   b._wonder = true;
+  if (typeof oroPane === "function" && ORO.on) oroPane(b);
   if (WONDER.light && !SLOW){
     const g = document.createElement("span");
     g.className = "glint";
@@ -6098,6 +6319,11 @@ function startIntro(){
   }
   if (roseBtn.classList.contains("bud")) bloom();
   setTimeout(startPetals, 1300);
+  if (ORO.on) setTimeout(function (){
+    const kin = roseBtn.querySelector(".kin");
+    if (kin) kin.classList.add("drawn");
+    if (seamSvg) seamSvg.classList.add("drawn");
+  }, 1500);
 }
 
 function showRose(){ roseSvg.style.opacity = ""; }
@@ -6176,7 +6402,7 @@ function restart(el, cls){
    stanzas, the light through its title. When the page is already open
    (moving from song to song) the theme and the words rise again too. */
 function gloryFill(s){
-  veil.style.setProperty("--arc", "var(--rgb-" + s.lang + ")");
+  veil.style.setProperty("--arc", ORO.on ? GOLD_RGB : "var(--rgb-" + s.lang + ")");
 
   const paras = elBody.querySelectorAll("p");
   for (let k = 0; k < paras.length; k++) paras[k].style.setProperty("--p", k);
@@ -6314,6 +6540,248 @@ function gloryClose(card){
   }, 340);
 }
 
+
+/* ---------------- ORO: kintsugi, the gold that mends ---------------- */
+
+const ORO = {
+  on:   true,    /* the whole golden look; false brings back the page as it was */
+  ink:  true     /* song titles in ink, the language in small gold letters; false keeps the language colours */
+};
+const GOLD_RGB = "195,154,69";
+const SVGNS = "http:\/\/www.w3.org\/2000\/svg";
+
+if (ORO.on){
+  document.documentElement.classList.add("oro");
+  if (ORO.ink) document.documentElement.classList.add("oro-ink");
+  const silk = document.createElement("div");
+  silk.className = "silk";
+  silk.setAttribute("aria-hidden", "true");
+  document.body.insertBefore(silk, document.body.firstChild);
+}
+
+/* a small seeded random, so a song's shard and scar are the same every visit */
+function oroRand(seed){
+  let s = seed >>> 0 || 1;
+  return function (){ s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+function oroHash(str){
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+/* a jagged line, as a crack runs: from a to b in a few uneven steps */
+function oroCrack(r, x0, y0, x1, y1, steps, wob){
+  const pts = [[x0, y0]];
+  const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1;
+  const nx = -dy / L, ny = dx / L;
+  for (let i = 1; i < steps; i++){
+    const f = i / steps + (r() - .5) * .5 / steps;
+    const off = (r() - .5) * 2 * wob;
+    pts.push([x0 + dx * f + nx * off, y0 + dy * f + ny * off]);
+  }
+  pts.push([x1, y1]);
+  return pts;
+}
+function oroD(pts){
+  return pts.map(function (p, i){ return (i ? "L" : "M") + p[0].toFixed(2) + "," + p[1].toFixed(2); }).join(" ");
+}
+
+/* one golden line: the gold, a finer highlight on it, and a hidden runner for the light */
+function oroLine(parent, d, opt){
+  const o = opt || {};
+  const make = function (cls){
+    const p = document.createElementNS(SVGNS, "path");
+    p.setAttribute("d", d);
+    p.setAttribute("pathLength", "100");
+    p.setAttribute("class", cls);
+    if (o.scale === false) p.setAttribute("vector-effect", "non-scaling-stroke");
+    if (o.dd) p.style.setProperty("--dd", o.dd + "ms");
+    if (o.dl) p.style.setProperty("--dl", o.dl + "ms");
+    parent.appendChild(p);
+    return p;
+  };
+  make("b draw" + (o.cls ? " " + o.cls : ""));
+  make("h draw");
+  return make("run");
+}
+
+/* the light running along a golden line, once */
+function oroRun(path, ms){
+  if (!path || SLOW) return;
+  path.classList.remove("go");
+  void path.getBoundingClientRect();
+  path.style.setProperty("--rd", (ms || 1800) + "ms");
+  path.classList.add("go");
+}
+
+/* ---- the rose, mended: seams across its head, drawn once it has opened ---- */
+let roseRuns = [];
+(function (){
+  if (!ORO.on) return;
+  const head = roseBtn.querySelector(".head");
+  if (!head) return;
+  const g = document.createElementNS(SVGNS, "g");
+  g.setAttribute("class", "kin");
+  const r = oroRand(7);
+  const cx = 120, cy = 92;
+  const ends = [[-2.5, 46], [-.6, 44], [1.1, 42], [2.4, 40]];
+  for (const e of ends){
+    const a = e[0] + (r() - .5) * .3;
+    const pts = oroCrack(r, cx + Math.cos(a) * 5, cy + Math.sin(a) * 5,
+                            cx + Math.cos(a) * e[1], cy + Math.sin(a) * e[1], 5, 4);
+    roseRuns.push(oroLine(g, oroD(pts), { dd: 2600, dl: 300 + roseRuns.length * 450 }));
+    if (r() < .6){
+      const k = 2 + ((r() * 2) | 0), p = pts[k], b = a + (r() < .5 ? -.8 : .8);
+      oroLine(g, oroD(oroCrack(r, p[0], p[1], p[0] + Math.cos(b) * 16, p[1] + Math.sin(b) * 16, 3, 2.5)),
+              { dd: 1600, dl: 1800 + roseRuns.length * 450 });
+    }
+  }
+  head.appendChild(g);
+})();
+
+/* ---- the seams spreading out from the rose across the glaze ---- */
+let seamRuns = [], seamSvg = null;
+function oroSeams(){
+  if (!ORO.on || !heroEl) return;
+  const hr = heroEl.getBoundingClientRect(), rr = roseSvg.getBoundingClientRect();
+  if (!hr.width || !rr.width) return;
+  const W = hr.width, H = hr.height + 40;
+  const ox = rr.left - hr.left + rr.width / 2, oy = rr.top - hr.top + rr.height * .27;
+  const narrow = innerWidth < 560;
+  const h1 = document.getElementById("title");
+  const top = h1 ? h1.getBoundingClientRect().bottom - hr.top + 14 : 0;
+
+  const svg = document.createElementNS(SVGNS, "svg");
+  svg.setAttribute("class", "seams");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("width", W);
+  svg.setAttribute("height", H);
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  const rx = W * (narrow ? .5 : .44), ry = Math.max(60, hr.height - oy);
+  const m = "radial-gradient(" + rx + "px " + ry + "px at " + ox + "px " + oy + "px, #000 0%, #000 30%, transparent 100%)";
+  svg.style.webkitMaskImage = m;
+  svg.style.maskImage = m;
+
+  const r = oroRand(11 + Math.round(W / 50));
+  const n = narrow ? 4 : 6;
+  seamRuns = [];
+  for (let i = 0; i < n; i++){
+    /* out to the two sides of the rose, a little up or down; never up
+       through the title, never straight down over the search */
+    const left = i % 2 === 1, k = Math.floor(i / 2) / Math.max(1, Math.ceil(n / 2) - 1);
+    const tilt = -.18 + k * .8 + (r() - .5) * .2;
+    const a = left ? Math.PI - tilt : tilt;
+    const len = W * (narrow ? .42 : .3) * (.75 + r() * .45);
+    const x1 = ox + Math.cos(a) * len, y1 = oy + Math.sin(a) * len * .9;
+    const pts = oroCrack(r, ox + Math.cos(a) * rr.width * .35, oy + Math.sin(a) * rr.width * .35, x1, y1, 9, len * .05);
+    /* the gold stays below the title */
+    for (const p of pts) p[1] = Math.max(p[1], top);
+    seamRuns.push(oroLine(svg, oroD(pts), { dd: 5200 + r() * 2400, dl: 600 + i * 380 }));
+    for (let b = 0; b < 1; b++){
+      if (r() < .45){
+        const k = 3 + ((r() * 4) | 0), p = pts[k], ba = a + (r() < .5 ? -1 : 1) * (.5 + r() * .5);
+        const bl = len * (.18 + r() * .2);
+        const bp = oroCrack(r, p[0], p[1], p[0] + Math.cos(ba) * bl, p[1] + Math.sin(ba) * bl, 4, bl * .06);
+        for (const q of bp) q[1] = Math.max(q[1], top);
+        oroLine(svg, oroD(bp),
+                { dd: 2600 + r() * 1200, dl: 2600 + i * 380 + b * 500 });
+      }
+    }
+  }
+  const was = seamSvg && seamSvg.classList.contains("drawn");
+  if (seamSvg) seamSvg.remove();
+  seamSvg = svg;
+  heroEl.insertBefore(svg, heroEl.firstChild);
+  if (was) svg.classList.add("drawn");
+}
+
+/* ---- every song a shard: its outline and its scar come from its title ---- */
+function oroPane(b){
+  if (!ORO.on || b._oro) return;
+  b._oro = true;
+  const t = b.querySelector(".t");
+  const title = t ? t.textContent : "";
+  const r = oroRand(oroHash(title));
+
+  /* the outline: each corner a little chipped, sometimes one edge broken inwards */
+  const c = function (){ return 1 + r() * 6; };
+  const pts = [[c(), c()], [100 - c(), c()], [100 - c(), 100 - c()], [c(), 100 - c()]];
+  if (r() < .45){
+    const e = (r() * 4) | 0, f = .3 + r() * .4, a = pts[e], z = pts[(e + 1) % 4];
+    const mid = [a[0] + (z[0] - a[0]) * f, a[1] + (z[1] - a[1]) * f];
+    const inward = 2 + r() * 4;
+    if (e === 0) mid[1] += inward; else if (e === 1) mid[0] -= inward;
+    else if (e === 2) mid[1] -= inward; else mid[0] += inward;
+    pts.splice(e + 1, 0, mid);
+  }
+  b.style.setProperty("--shard", "polygon(" + pts.map(function (p){ return p[0].toFixed(1) + "% " + p[1].toFixed(1) + "%"; }).join(",") + ")");
+
+  const svg = document.createElementNS(SVGNS, "svg");
+  svg.setAttribute("class", "kin");
+  svg.setAttribute("viewBox", "0 0 100 100");
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("aria-hidden", "true");
+  const delay = 200 + (parseFloat(b.style.getPropertyValue("--i")) || 0) * 40;
+  oroLine(svg, "M" + pts.map(function (p){ return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join(" L") + " Z",
+          { scale: false, cls: "rim", dd: 2400, dl: delay });
+
+  /* the scar: from one edge across to another, sometimes with a branch */
+  const side = function (s){
+    const u = .15 + r() * .7;
+    return s === 0 ? [u * 100, 0] : s === 1 ? [100, u * 100] : s === 2 ? [u * 100, 100] : [0, u * 100];
+  };
+  /* from one edge to the next, near the corner they share */
+  const corner = (r() * 4) | 0;
+  const near = function (s, fromEnd){
+    const u = (.12 + r() * .4) * 100;
+    const v = fromEnd ? 100 - u : u;
+    return s === 0 ? [v, 0] : s === 1 ? [100, v] : s === 2 ? [v, 100] : [0, v];
+  };
+  const s0 = corner, s1 = (corner + 1) % 4;
+  /* corner 0 joins top and right, 1 right and bottom, 2 bottom and left, 3 left and top */
+  const A = near(s0, corner === 0 || corner === 1), B = near(s1, corner === 1 || corner === 2);
+  const crack = oroCrack(r, A[0], A[1], B[0], B[1], 4, 4);
+  b._run = oroLine(svg, oroD(crack), { scale: false, dd: 1800, dl: delay + 700 });
+  if (r() < .35){
+    const p = crack[2], fx = p[0] + (50 - p[0]) * .35, fy = p[1] + (50 - p[1]) * .35;
+    oroLine(svg, oroD(oroCrack(r, p[0], p[1], fx, fy, 2, 3)), { scale: false, dd: 900, dl: delay + 1500 });
+  }
+  b.insertBefore(svg, b.firstChild);
+
+  if (ORO.ink){
+    const lg = document.createElement("span");
+    lg.className = "lg";
+    lg.textContent = LANG_NAME[b.dataset.lang] || "";
+    b.appendChild(lg);
+  }
+  requestAnimationFrame(function (){ b.classList.add("drawn"); });
+  b.addEventListener("pointerenter", function (){ oroRun(b._run, 1300); });
+}
+
+/* ---- now and then, light runs along the gold ---- */
+function oroGlint(){
+  if (document.hidden || !veil.hidden) return;
+  const pool = [];
+  if (seamSvg && heroSeen && seamSvg.classList.contains("drawn")) pool.push.apply(pool, seamRuns);
+  if (introDone && heroSeen) pool.push.apply(pool, roseRuns);
+  litPanes.forEach(function (p){ if (p._run) pool.push(p._run); });
+  if (pool.length) oroRun(pool[(Math.random() * pool.length) | 0], 1500 + Math.random() * 1200);
+}
+
+if (ORO.on){
+  oroSeams();
+  let seamTimer = 0, lastW = innerWidth;
+  window.addEventListener("resize", function (){
+    if (Math.abs(innerWidth - lastW) < 40) return;
+    lastW = innerWidth;
+    clearTimeout(seamTimer);
+    seamTimer = setTimeout(oroSeams, 300);
+  });
+  grid.querySelectorAll(".pane").forEach(oroPane);
+  if (!SLOW) setInterval(oroGlint, 2600);
+}
 
 wonderReady = true;
 queueLight();
