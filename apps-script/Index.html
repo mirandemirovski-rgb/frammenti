@@ -7,7 +7,7 @@
 <title>Frammenti di Sogni e Speranze</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant&#43;Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&amp;family=Italiana&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant&#43;Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&amp;family=Italiana&amp;family=Cinzel:wght@400;500;600&amp;family=EB&#43;Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&amp;family=Bodoni&#43;Moda:ital,opsz,wght@0,6..96,400..600;1,6..96,400..600&amp;display=swap">
 
 <style>
  
@@ -1872,6 +1872,68 @@ button, input{ -webkit-tap-highlight-color: transparent; }
 }
 .oro .close{ color: #8C6A26; }
 
+/* ---- type: one family for the page title, one for the song titles, one
+   for the lyrics (ORO.type). "classico": Bodoni Moda, Cinzel, EB Garamond.
+   "romantico": Cormorant italic, Cinzel, Cormorant italic. ---- */
+.oro-type-classico{
+  --f-display: "Bodoni Moda", "Cormorant Garamond", Garamond, serif;
+  --f-display-style: italic;
+  --f-display-space: .035em;
+  --f-title: Cinzel, "Cormorant Garamond", Garamond, serif;
+  --f-lyric: "EB Garamond", Garamond, "Times New Roman", serif;
+  --f-lyric-style: normal;
+  --f-lyric-weight: 500;
+  --f-lyric-size: clamp(1.06rem, 3.1vw, 1.27rem);
+  --f-ui: "EB Garamond", Garamond, serif;
+}
+.oro-type-romantico{
+  --f-display: "Cormorant Garamond", Garamond, serif;
+  --f-display-style: italic;
+  --f-display-space: .05em;
+  --f-title: Cinzel, "Cormorant Garamond", Garamond, serif;
+  --f-lyric: "Cormorant Garamond", Garamond, serif;
+  --f-lyric-style: italic;
+  --f-lyric-weight: 500;
+  --f-lyric-size: clamp(1.16rem, 3.4vw, 1.42rem);
+  --f-ui: "Cormorant Garamond", Garamond, serif;
+}
+.oro-type body{ font-family: var(--f-ui); }
+.oro-type .hero h1{
+  font-family: var(--f-display);
+  font-style: var(--f-display-style);
+  font-weight: 400;
+  letter-spacing: var(--f-display-space);
+  font-size: clamp(1.15rem, 5.6vw, 3.05rem);
+}
+.oro-type .signature{ font-family: var(--f-title); font-weight: 400; font-size: clamp(.7rem, 2.2vw, .86rem); }
+.oro-type .pane .t{
+  font-family: var(--f-title);
+  font-weight: 500;
+  letter-spacing: .12em;
+}
+.oro-type.oro-index .pane .t{ font-size: clamp(.9rem, 1.6vw, 1rem); }
+.oro-type.oro-index .pane:hover .t, .oro-type.oro-index .pane:focus-visible .t{ letter-spacing: .16em; }
+.oro-type .pane .lg{ font-family: var(--f-title); font-weight: 500; font-size: .5rem; letter-spacing: .3em; text-indent: .3em; }
+.oro-type .sheet-head h2,
+.oro-type .title-shine,
+.oro-type .title-flight{
+  font-family: var(--f-title);
+  font-weight: 500;
+  letter-spacing: .12em;
+  -webkit-text-stroke: 0;
+}
+.oro-type .sheet-next .sn-t{ font-family: var(--f-title); font-weight: 500; letter-spacing: .12em; }
+.oro-type .lyrics{
+  font-family: var(--f-lyric);
+  font-style: var(--f-lyric-style);
+  font-weight: var(--f-lyric-weight);
+  font-size: var(--f-lyric-size);
+  -webkit-text-stroke: .12px #161b27;
+  letter-spacing: .005em;
+}
+.oro-type .dedica{ font-family: var(--f-display); font-style: italic; letter-spacing: .08em; text-indent: .08em; }
+.oro-type .search input{ font-family: var(--f-ui); }
+
 @media (prefers-reduced-motion: reduce){
   .silk, .oro-dust{ display: none; }
   .oro .rose-btn.gilded::before{ animation: none; }
@@ -2147,6 +2209,28 @@ const LANG_OVERRIDE = {};
 
  
 const THEME_OVERRIDE = {};
+
+/* THE LOOK. Gold, the way the songs are shown, and the type.
+     on     true: the gold look. false: the page exactly as it was before.
+     cards  "index": the titles alone, as the index of a book.
+            "glass": glass cards with a gilded edge.
+     ink    true: titles in ink, the language in small gold letters.
+            false: titles in the language colours.
+     type   "classico": Bodoni Moda, Cinzel and EB Garamond.
+            "romantico": Cormorant italic, Cinzel and Cormorant italic.
+            "": the type as it was before. */
+const ORO = {
+  on:    true,
+  cards: "index",
+  ink:   true,
+  type:  "classico"
+};
+if (ORO.on){
+  const root = document.documentElement;
+  root.classList.add("oro", ORO.cards === "glass" ? "oro-glass" : "oro-index");
+  if (ORO.ink) root.classList.add("oro-ink");
+  if (ORO.type) root.classList.add("oro-type", "oro-type-" + ORO.type);
+}
 
 
 
@@ -5681,7 +5765,7 @@ function buildTitle(text){
     wd.className = "wd";
     for (const ch of w){
       const sp = document.createElement("span");
-      const bar = (ch === "\u0111" || ch === "\u0110");
+      const bar = (ch === "\u0111" || ch === "\u0110") && !document.documentElement.classList.contains("oro-type");
       sp.className = bar ? "lt dbar" : "lt";
       sp.style.setProperty("--k", k++);
       sp.textContent = bar ? (ch === "\u0111" ? "d" : "D") : ch;
@@ -6574,18 +6658,10 @@ function gloryClose(card){
 
 /* ---------------- ORO: gold that enhances, never shouts ---------------- */
 
-const ORO = {
-  on:    true,      /* the golden look; false brings back the page exactly as it was */
-  cards: "glass",   /* the songs: "glass" (glass with a gilded edge) or "index" (titles, as in a book) */
-  ink:   true       /* titles in ink with the language in small gold letters; false keeps the language colours */
-};
 const GOLD_RGB = "184,145,63";
 const SVGNS = "http:\/\/www.w3.org\/2000\/svg";
 
 if (ORO.on){
-  const root = document.documentElement;
-  root.classList.add("oro", ORO.cards === "index" ? "oro-index" : "oro-glass");
-  if (ORO.ink) root.classList.add("oro-ink");
   const silk = document.createElement("div");
   silk.className = "silk";
   silk.setAttribute("aria-hidden", "true");
