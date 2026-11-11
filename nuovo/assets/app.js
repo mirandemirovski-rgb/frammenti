@@ -238,8 +238,21 @@ function visible(){
   return ALL.filter((s) => fold(s.title).includes(q));
 }
 
+const SVGNS = "http:\/\/www.w3.org\/2000\/svg";
+const INKED = new Set();               /* letters the pen has already drawn this visit */
+const inkSeer = ("IntersectionObserver" in window) ? new IntersectionObserver((en) => {
+  en.forEach((e) => {
+    if (!e.isIntersecting) return;
+    const g = e.target;
+    INKED.add(g.dataset.letter);
+    g.classList.add("inked");
+    inkSeer.unobserve(g);
+  });
+}, { threshold: .35, rootMargin: "0px 0px -8% 0px" }) : null;
+
 function renderIndex(){
   const list = visible();
+  if (inkSeer) inkSeer.disconnect();
   elIndex.textContent = "";
   if (FILTER && !list.length){
     const p = document.createElement("p");
@@ -247,6 +260,7 @@ function renderIndex(){
     p.textContent = "Nessun titolo contiene «" + FILTER.trim() + "».";
     elIndex.appendChild(p);
   }
+  const present = new Map();
   let grp = null, ul = null, letter = "";
   for (const s of list){
     let L = fold(s.title).charAt(0).toUpperCase();
@@ -255,15 +269,29 @@ function renderIndex(){
       letter = L;
       grp = document.createElement("section");
       grp.className = "grp";
+      grp.id = "lettera-" + (L === "#" ? "altri" : L);
+      grp.dataset.letter = L;
       grp.setAttribute("aria-label", L === "#" ? "Altri" : L);
       const h = document.createElement("h3");
       h.className = "ini";
       h.setAttribute("aria-hidden", "true");
-      h.textContent = L;
+      const svg = document.createElementNS(SVGNS, "svg");
+      svg.setAttribute("viewBox", "0 0 52 62");
+      svg.setAttribute("focusable", "false");
+      const tx = document.createElementNS(SVGNS, "text");
+      tx.setAttribute("x", "1");
+      tx.setAttribute("y", "52");
+      tx.textContent = L;
+      svg.appendChild(tx);
+      h.appendChild(svg);
       ul = document.createElement("ul");
       grp.append(h, ul);
       elIndex.appendChild(grp);
+      if (SLOW || INKED.has(L)) grp.classList.add("inked", "still");
+      else if (inkSeer) inkSeer.observe(grp);
+      else grp.classList.add("inked");
     }
+    present.set(L, (present.get(L) || 0) + 1);
     const li = document.createElement("li");
     const a = document.createElement("a");
     a.className = "song";
@@ -286,6 +314,97 @@ function renderIndex(){
   elCount.textContent = !ALL.length ? ""
     : FILTER ? list.length + " di " + ALL.length
     : ALL.length + (ALL.length === 1 ? " testo" : " testi");
+  railFill(present);
+}
+
+/* ============================================================
+   THE ALPHABET — a thin A to Z at the side, to glide to a letter
+   ============================================================ */
+const rail = document.createElement("nav");
+rail.className = "abc";
+rail.id = "abc";
+rail.setAttribute("aria-label", "Vai alla lettera");
+"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach((L) => {
+  const a = document.createElement("a");
+  a.href = "#lettera-" + L;
+  a.dataset.l = L;
+  a.textContent = L;
+  rail.appendChild(a);
+});
+document.body.appendChild(rail);
+
+function railFill(present){
+  rail.querySelectorAll("a").forEach((a) => {
+    const n = present.get(a.dataset.l) || 0;
+    a.classList.toggle("off", !n);
+    if (n){
+      a.removeAttribute("aria-disabled");
+      a.removeAttribute("tabindex");
+      a.setAttribute("aria-label", "Lettera " + a.dataset.l + ", " + n + (n === 1 ? " testo" : " testi"));
+    } else {
+      a.setAttribute("aria-disabled", "true");
+      a.setAttribute("tabindex", "-1");
+      a.setAttribute("aria-label", "Lettera " + a.dataset.l + ", nessun testo");
+    }
+  });
+  railNow();
+}
+
+function railGo(L, smooth){
+  const g = document.getElementById("lettera-" + L);
+  if (!g) return;
+  g.scrollIntoView({ behavior: smooth && !SLOW ? "smooth" : "auto", block: "start" });
+}
+
+rail.addEventListener("click", (e) => {
+  const a = e.target.closest("a");
+  if (!a) return;
+  e.preventDefault();
+  if (a.classList.contains("off")) return;
+  railGo(a.dataset.l, true);
+  const first = document.querySelector("#lettera-" + a.dataset.l + " a.song");
+  if (first && e.detail === 0) first.focus({ preventScroll: true });   /* keyboard: carry the focus there */
+});
+
+/* on a phone the finger can slide along the letters, as in a contacts list */
+(function (){
+  let on = false, lastL = "";
+  function at(e){
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const a = el && el.closest && el.closest(".abc a");
+    rail.querySelectorAll("a.touch").forEach((x) => x.classList.remove("touch"));
+    if (!a || a.classList.contains("off")) return;
+    a.classList.add("touch");
+    if (a.dataset.l !== lastL){ lastL = a.dataset.l; railGo(lastL, false); }
+  }
+  rail.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse") return;
+    on = true; lastL = "";
+    try { rail.setPointerCapture(e.pointerId); } catch (err){}
+    at(e);
+  });
+  rail.addEventListener("pointermove", (e) => { if (on) at(e); });
+  function end(){ on = false; setTimeout(() => rail.querySelectorAll("a.touch").forEach((x) => x.classList.remove("touch")), 380); }
+  rail.addEventListener("pointerup", end);
+  rail.addEventListener("pointercancel", end);
+})();
+
+/* the letter you are reading in is lit on the rail */
+let railQueued = false;
+function railNow(){
+  railQueued = false;
+  const groups = elIndex.querySelectorAll(".grp");
+  let cur = "";
+  const line = innerHeight * .32;
+  groups.forEach((g) => { if (g.getBoundingClientRect().top <= line) cur = g.dataset.letter; });
+  if (!cur && groups.length) cur = groups[0].dataset.letter;
+  rail.querySelectorAll("a").forEach((a) => a.classList.toggle("now", a.dataset.l === cur));
+}
+window.addEventListener("scroll", () => { if (!railQueued){ railQueued = true; requestAnimationFrame(railNow); } }, { passive: true });
+if ("IntersectionObserver" in window){
+  new IntersectionObserver((en) => {
+    document.body.classList.toggle("in-index", en[0].isIntersecting);
+  }, { threshold: 0, rootMargin: "-30% 0px -30% 0px" }).observe($("indice"));
 }
 
 elIndex.addEventListener("click", (e) => {
@@ -389,6 +508,7 @@ function openSong(s, src, push){
   veil.hidden = false;
   document.documentElement.classList.add("lock");
   void veil.offsetWidth;
+  frost.scrollTop = 0;          /* only now: while the page was hidden the browser ignored it */
   requestAnimationFrame(() => {
     veil.classList.add("on");
     flyFrom(src);
@@ -412,6 +532,7 @@ function closeSheet(fromHistory){
   frost.classList.remove("reading");
   document.title = "Frammenti di Sogni e Speranze — Miran Demirovski";
   hideTimer = setTimeout(() => {
+    frost.scrollTop = 0;        /* leave it at the top for the next song */
     veil.hidden = true;
     if (window.FX) FX.unmount();
     current = null;
@@ -646,32 +767,6 @@ function turnTitle(){
 }
 if (!SLOW) titleTimer = setTimeout(turnTitle, 11000);
 
-/* light running through the drawn gold, now and then */
-let shine = null, shineTimer = 0;
-function makeShine(){
-  if (!rose || shine) return;
-  const url = rose.snapshot();
-  if (!url) return;
-  shine = document.createElement("div");
-  shine.className = "rl-shine";
-  shine.style.webkitMaskImage = "url(" + url + ")";
-  shine.style.maskImage = "url(" + url + ")";
-  rose.el.appendChild(shine);
-}
-function runShine(){
-  clearTimeout(shineTimer);
-  if (SLOW) return;
-  if (heroSeen && !songOpen && !document.hidden){
-    makeShine();
-    if (shine){
-      shine.classList.remove("run");
-      void shine.offsetWidth;
-      shine.classList.add("run");
-    }
-  }
-  shineTimer = setTimeout(runShine, 11000);
-}
-
 /* petals of line, let go by the rose */
 const petalHost = $("petals");
 const PETALS = [
@@ -716,11 +811,14 @@ function petalLoop(){
   petalTimer = setTimeout(petalLoop, 2600 + Math.random() * 2200);
 }
 
-/* a line of light follows the pointer across the hero (mouse only) */
+/* a line of light follows the pointer across the hero, then comes apart into
+   petals of line that fall. On a phone a tap lets a few petals go. */
 function trail(){
-  if (!FINE || SLOW) return;
+  if (SLOW) return;
   const cv = $("trail"), cx = cv.getContext("2d");
-  let pts = [], raf = 0, W = 0, H = 0, dpr = 1;
+  const SHAPES = PETALS.map((sh) => sh.map((d) => new Path2D(d)));
+  const LIFE = 1250, DISSOLVE = 430, GAP = 30;
+  let pts = [], petals = [], raf = 0, W = 0, H = 0, dpr = 1, last = 0, run = 0;
   function size(){
     dpr = Math.min(2, window.devicePixelRatio || 1);
     W = hero.clientWidth; H = hero.clientHeight;
@@ -729,25 +827,76 @@ function trail(){
   }
   size();
   window.addEventListener("resize", size);
+  function kick(){ if (!raf){ last = performance.now(); raf = requestAnimationFrame(draw); } }
+  function petal(x, y, vx, vy){
+    if (petals.length > 80) return;
+    petals.push({ x: x, y: y, vx: vx, vy: vy,
+      rot: Math.random() * 6.283, vr: (Math.random() - .5) * 2.4,
+      flip: Math.random() * 6.283, vf: 1.6 + Math.random() * 2.6,
+      s: .62 + Math.random() * .5, sh: SHAPES[(Math.random() * SHAPES.length) | 0],
+      sway: Math.random() * 6.283, born: performance.now(), life: 2600 + Math.random() * 2000 });
+  }
+  function local(e){ const r = hero.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+
   hero.addEventListener("pointermove", (e) => {
     if (e.pointerType !== "mouse" || songOpen) return;
-    const r = hero.getBoundingClientRect();
-    pts.push({ x: e.clientX - r.left, y: e.clientY - r.top, t: performance.now() });
-    if (pts.length > 90) pts.shift();
-    if (!raf) raf = requestAnimationFrame(draw);
+    const p = local(e), now = performance.now();
+    const prev = pts[pts.length - 1];
+    let vx = 0, vy = 0;
+    if (prev){ const dt = Math.max(8, now - prev.t); vx = (p[0] - prev.x) / dt * 1000; vy = (p[1] - prev.y) / dt * 1000; }
+    pts.push({ x: p[0], y: p[1], t: now, vx: vx, vy: vy, gone: false });
+    if (pts.length > 110) pts.shift();
+    kick();
   });
+
+  let down = null;
+  hero.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse") return;
+    down = { p: local(e), t: performance.now(), x: e.clientX, y: e.clientY };
+  });
+  hero.addEventListener("pointerup", (e) => {
+    if (!down || e.pointerType === "mouse") return;
+    const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), held = performance.now() - down.t;
+    const p = down.p; down = null;
+    if (moved > 10 || held > 450 || songOpen) return;      /* a scroll, not a tap */
+    if (e.target.closest && e.target.closest("a, button")) return;
+    const n = 6 + ((Math.random() * 3) | 0);
+    for (let i = 0; i < n; i++){
+      const a = -Math.PI / 2 + (Math.random() - .5) * 2.2;
+      const sp = 40 + Math.random() * 70;
+      petal(p[0] + (Math.random() - .5) * 10, p[1] + (Math.random() - .5) * 10, Math.cos(a) * sp, Math.sin(a) * sp);
+    }
+    kick();
+  });
+  hero.addEventListener("pointercancel", () => { down = null; });
+
   function draw(now){
     raf = 0;
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
     cx.clearRect(0, 0, W, H);
-    pts = pts.filter((p) => now - p.t < 1500);
-    if (pts.length < 2) return;
+    pts = pts.filter((p) => now - p.t < LIFE);
+
+    /* the line comes apart where it is oldest: each piece becomes a petal */
+    for (const p of pts){
+      if (p.gone || now - p.t < DISSOLVE) continue;
+      p.gone = true;
+      const i = pts.indexOf(p), q = pts[i - 1];
+      run += q ? Math.hypot(p.x - q.x, p.y - q.y) : 0;
+      if (run >= GAP){
+        run = 0;
+        petal(p.x, p.y, p.vx * .18 + (Math.random() - .5) * 26, p.vy * .12 - 14 - Math.random() * 18);
+      }
+    }
+
     cx.lineCap = "round"; cx.lineJoin = "round";
     for (let i = 1; i < pts.length; i++){
       const a = pts[i - 1], b = pts[i];
-      const age = (now - b.t) / 1500;
-      const al = Math.pow(1 - age, 2) * .55;
+      const age = (now - b.t) / LIFE;
+      const melt = Math.max(0, (now - b.t - DISSOLVE) / (LIFE - DISSOLVE));
+      const al = Math.pow(1 - age, 1.6) * .6 * Math.pow(1 - melt, 1.8);
+      if (al < .01) continue;
       cx.strokeStyle = "rgba(240,217,166," + al.toFixed(3) + ")";
-      cx.lineWidth = .9 + (1 - age) * .5;
+      cx.lineWidth = .9 + (1 - age) * .55;
       cx.beginPath();
       if (i > 1){
         const z = pts[i - 2];
@@ -756,7 +905,31 @@ function trail(){
       } else { cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); }
       cx.stroke();
     }
-    raf = requestAnimationFrame(draw);
+
+    /* the petals: they flutter (a turn seen edge-on), drift, and fall slowly */
+    petals = petals.filter((f) => now - f.born < f.life && f.y < H + 40);
+    for (const f of petals){
+      f.vy = Math.min(46, f.vy + 30 * dt);
+      f.vx *= Math.pow(.35, dt);
+      f.x += (f.vx + Math.sin(now / 900 + f.sway) * 16) * dt;
+      f.y += f.vy * dt;
+      f.rot += f.vr * dt;
+      f.flip += f.vf * dt;
+      const k = (now - f.born) / f.life;
+      const al = Math.min(1, (now - f.born) / 180) * (k > .55 ? 1 - (k - .55) / .45 : 1) * .85;
+      const squash = Math.max(.14, Math.abs(Math.cos(f.flip)));
+      cx.save();
+      cx.translate(f.x, f.y);
+      cx.rotate(f.rot);
+      cx.scale(f.s, f.s * squash);
+      cx.lineWidth = .9 / f.s;
+      cx.strokeStyle = "rgba(226,196,138," + al.toFixed(3) + ")";
+      cx.stroke(f.sh[0]);
+      cx.strokeStyle = "rgba(226,196,138," + (al * .55).toFixed(3) + ")";
+      cx.stroke(f.sh[1]);
+      cx.restore();
+    }
+    if (pts.length || petals.length) raf = requestAnimationFrame(draw);
   }
 }
 
@@ -773,10 +946,11 @@ function startRose(){
   try {
     rose = FrammentiRose.mount($("roseHost"), {
       instant: SLOW,
+      still: SLOW,
       delay: .15,
+      isPaused: () => !heroSeen || songOpen || document.hidden,
       onDone: () => {
         if (SLOW) return;
-        setTimeout(runShine, 900);
         setTimeout(petalLoop, 600);
       }
     });

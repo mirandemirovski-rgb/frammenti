@@ -274,10 +274,12 @@ function mount(host, opt){
   opt = opt || {};
   const geo = window.ROSE_LINES ? unpack(window.ROSE_LINES) : build(window.ROSE_DATA);
   const nA = noise1(11), nB = noise1(23), nW = noise1(37), nS = noise1(51);
+  const dA = noise1(61), dB = noise1(73);
 
   /* prepare strokes: tremor, arc length, timing */
   let t = opt.delay || 0;
   let sAcc = 0;
+  let leafNo = -1, leafBase = null;
   const strokes = geo.strokes.map((s, idx) => {
     const pts = [];
     let L = 0;
@@ -288,7 +290,11 @@ function mount(host, opt){
       pts.push([s.pts[i][0] + nA(q) * amp, s.pts[i][1] + nB(q) * amp, L]);
     }
     sAcc += L + 40;
-    return { kind: s.kind, pts: pts, L: L, t0: 0, dur: 0, at: 0, seed: idx * 7.3, w: L * PACE[s.kind] };
+    if (s.kind === "leaf"){ leafNo++; leafBase = [pts[0][0], pts[0][1]]; }
+    const onLeaf = (s.kind === "leaf" || s.kind === "vein") && leafBase;
+    return { kind: s.kind, pts: pts, L: L, t0: 0, dur: 0, at: 0, seed: idx * 7.3, w: L * PACE[s.kind],
+             leaf: onLeaf ? leafNo : -1, base: onLeaf ? leafBase : null,
+             head: s.kind === "heart" || s.kind === "middle" || s.kind === "outer" || s.kind === "fold" };
   });
   const gaps = strokes.length * 0.03;
   const sumW = strokes.reduce((a, s) => a + s.w, 0);
@@ -307,6 +313,143 @@ function mount(host, opt){
   const gx = glow.getContext("2d"), x = ink.getContext("2d");
   let W = 0, H = 0, S = 1, OX = 0, OY = 0, dpr = 1;
   const B = geo.box, pad = 6;
+  let stemFoot = [CX, B.y1];
+  strokes.forEach(s => { if (s.kind === "stem"){ const p = s.pts[s.pts.length - 1]; stemFoot = [p[0], p[1]]; } });
+
+  const px = (p) => [OX + p[0] * S, OY + p[1] * S];
+  const base = () => Math.max(0.7, Math.min(1.6, S * 0.62));
+
+  function widthAt(s, u, L){
+    const a = Math.min(1, u / 0.07), b = Math.min(1, (1 - u) / 0.12);
+    const taper = Math.pow(Math.max(0, a), 0.6) * Math.pow(Math.max(0, b), 0.75);
+    const press = 0.78 + 0.42 * (0.5 + 0.5 * nW(s.seed + L * 0.035));
+    return base() * WEIGHT[s.kind] * (0.22 + 0.78 * taper) * press;
+  }
+  function alphaAt(s, u, L){
+    let fl = 0.86 + 0.14 * nS(s.seed * 3 + L * 0.08);
+    if (s.kind === "stem" && u > .62) fl *= Math.max(0, 1 - (u - .62) / .38);
+    return fl;
+  }
+
+  /* the pen, while the rose is being drawn: segment by segment, never redrawn */
+  function paintTo(s, upto){
+    const P = s.pts, c = INK[s.kind];
+    for (let i = Math.max(1, s.at); i <= upto && i < P.length; i++){
+      const a = px(P[i - 1]), b = px(P[i]);
+      const u = P[i][2] / Math.max(1e-6, s.L);
+      const w = widthAt(s, u, P[i][2]);
+      const fl = alphaAt(s, u, P[i][2]);
+      x.strokeStyle = "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + fl.toFixed(3) + ")";
+      x.lineWidth = w;
+      x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); x.stroke();
+      gx.strokeStyle = "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + (.5 * fl).toFixed(3) + ")";
+      gx.lineWidth = w * 3.2;
+      gx.beginPath(); gx.moveTo(a[0], a[1]); gx.lineTo(b[0], b[1]); gx.stroke();
+    }
+    s.at = Math.max(s.at, Math.min(upto, P.length - 1));
+  }
+
+  /* ---------- alive: once drawn, the rose breathes ----------
+     The head opens and closes a little on a slow breath, its heart turns,
+     every line drifts as if redrawn by a living hand, the leaves rise and
+     fall, the whole flower sways from the foot of its stem, the glow pulses,
+     and now and then light runs through the gold. */
+  const CH = 6;
+  const BREATH = 7.4, SWAY = 9.6, SHAPE = 17, SHINE = 11, SHINE_RUN = 2.6;
+  let aliveT0 = 0, aliveOn = false, lastPaint = 0;
+  const axis = (p) => ((p[0] - B.x0) * .78 + (p[1] - B.y0) * .62) / ((B.x1 - B.x0) * .78 + (B.y1 - B.y0) * .62);
+
+  function breathAt(T){
+    /* slower in, softer out */
+    const ph = (T % BREATH) / BREATH;
+    const v = ph < .46 ? Math.sin(ph / .46 * Math.PI / 2) : Math.cos((ph - .46) / .54 * Math.PI / 2);
+    return v * v * 2 - 1;
+  }
+
+  function livePoint(s, p, T, br, ramp, shape){
+    let X = p[0], Y = p[1];
+    if (s.head){
+      const dx = X - CX, dy = Y - CY;
+      const r = Math.hypot(dx, dy);
+      let ang = 0;
+      if (s.kind === "heart") ang = 0.05 * br * ramp * Math.max(0, 1 - r / 24);
+      const e = 1 + 0.026 * br * ramp * Math.min(1, r / 30);
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      X = CX + (dx * ca - dy * sa) * e;
+      Y = CY + (dx * sa + dy * ca) * e;
+    } else if (s.base){
+      const dir = s.leaf % 2 ? 1 : -1;
+      const ang = 0.03 * br * ramp * dir;
+      const dx = X - s.base[0], dy = Y - s.base[1];
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      X = s.base[0] + dx * ca - dy * sa;
+      Y = s.base[1] + dx * sa + dy * ca;
+    }
+    const amp = (s.head ? 0.42 : 0.26) * ramp * shape;
+    const q = s.seed * 1.7 + p[2] * 0.035 + T * 0.16;
+    X += dA(q) * amp;
+    Y += dB(q + 31) * amp;
+    return [OX + X * S, OY + Y * S];
+  }
+
+  function paintAlive(now){
+    const T = (now - aliveT0) / 1000;
+    const ramp = Math.min(1, T / 2.8);
+    const br = breathAt(T);
+    const sh = Math.sin(T / SHAPE * Math.PI * 2);
+    const shape = 0.55 + 0.9 * Math.max(0, sh) * Math.max(0, sh);
+    const sc = (T + 3) % SHINE;
+    const band = sc < SHINE_RUN ? -0.25 + 1.5 * (1 - Math.pow(1 - sc / SHINE_RUN, 2)) : -9;
+
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    x.clearRect(0, 0, ink.width, ink.height);
+    x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    for (const s of strokes){
+      const P = s.pts, c = INK[s.kind];
+      for (let i = 0; i < P.length - 1; i += CH){
+        const j = Math.min(P.length - 1, i + CH);
+        const mid = P[(i + j) >> 1];
+        const u = mid[2] / Math.max(1e-6, s.L);
+        let w = widthAt(s, u, mid[2]) * 1.1;
+        let al = Math.min(1, alphaAt(s, u, mid[2]) * 1.15);
+        let r = c[0], g = c[1], b = c[2];
+        if (band > -1){
+          const d = (axis(mid) - band) / 0.075;
+          const boost = Math.exp(-d * d);
+          if (boost > .02){
+            r += (255 - r) * boost; g += (246 - g) * boost; b += (224 - b) * boost;
+            w *= 1 + .45 * boost;
+            al = Math.min(1, al + .35 * boost);
+          }
+        }
+        x.strokeStyle = "rgba(" + (r | 0) + "," + (g | 0) + "," + (b | 0) + "," + al.toFixed(3) + ")";
+        x.lineWidth = w;
+        x.beginPath();
+        let q = livePoint(s, P[i], T, br, ramp, shape);
+        x.moveTo(q[0], q[1]);
+        for (let m = i + 1; m <= j; m++){ q = livePoint(s, P[m], T, br, ramp, shape); x.lineTo(q[0], q[1]); }
+        x.stroke();
+      }
+    }
+    /* the glow pulses with the breath; the flower sways from the foot of its stem */
+    glow.style.opacity = (0.3 + 0.14 * (br * .5 + .5) * ramp).toFixed(3);
+    const sway = 0.85 * Math.sin(T / SWAY * Math.PI * 2) * ramp;
+    wrap.style.transform = "rotate(" + sway.toFixed(3) + "deg)";
+  }
+
+  function aliveLoop(now){
+    raf = requestAnimationFrame(aliveLoop);
+    if (opt.isPaused && opt.isPaused()) return;
+    if (now - lastPaint < 40) return;          /* 25 drawings a second is enough for a slow breath */
+    lastPaint = now;
+    paintAlive(now);
+  }
+  function startAlive(){
+    if (aliveOn || opt.still) return;
+    aliveOn = true;
+    aliveT0 = performance.now();
+    raf = requestAnimationFrame(aliveLoop);
+  }
 
   function layout(){
     W = host.clientWidth; H = host.clientHeight;
@@ -318,45 +461,20 @@ function mount(host, opt){
     OY = (H - bh * S) / 2 - (B.y0 - pad) * S;
     x.setTransform(dpr, 0, 0, dpr, 0, 0); gx.setTransform(dpr, 0, 0, dpr, 0, 0);
     x.lineCap = gx.lineCap = "round"; x.lineJoin = gx.lineJoin = "round";
+    const f = px(stemFoot);
+    wrap.style.transformOrigin = f[0].toFixed(1) + "px " + f[1].toFixed(1) + "px";
     /* redraw what is already drawn */
     strokes.forEach(s => { const k = s.at; s.at = 0; paintTo(s, k); });
+    lastPaint = 0;
   }
 
-  const px = (p) => [OX + p[0] * S, OY + p[1] * S];
-  const base = () => Math.max(0.7, Math.min(1.6, S * 0.62));
-
-  function widthAt(s, u, L){
-    const a = Math.min(1, u / 0.07), b = Math.min(1, (1 - u) / 0.12);
-    const taper = Math.pow(Math.max(0, a), 0.6) * Math.pow(Math.max(0, b), 0.75);
-    const press = 0.78 + 0.42 * (0.5 + 0.5 * nW(s.seed + L * 0.035));
-    return base() * WEIGHT[s.kind] * (0.22 + 0.78 * taper) * press;
-  }
-
-  function paintTo(s, upto){
-    const P = s.pts, c = INK[s.kind];
-    for (let i = Math.max(1, s.at); i <= upto && i < P.length; i++){
-      const a = px(P[i - 1]), b = px(P[i]);
-      const u = P[i][2] / Math.max(1e-6, s.L);
-      const w = widthAt(s, u, P[i][2]);
-      let fl = 0.86 + 0.14 * nS(s.seed * 3 + P[i][2] * 0.08);
-      if (s.kind === "stem" && u > .62) fl *= Math.max(0, 1 - (u - .62) / .38);
-      x.strokeStyle = "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + fl.toFixed(3) + ")";
-      x.lineWidth = w;
-      x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); x.stroke();
-      gx.strokeStyle = "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + (.5 * fl).toFixed(3) + ")";
-      gx.lineWidth = w * 3.2;
-      gx.beginPath(); gx.moveTo(a[0], a[1]); gx.lineTo(b[0], b[1]); gx.stroke();
-    }
-    s.at = Math.max(s.at, Math.min(upto, P.length - 1));
-  }
-
+  let raf = 0, done = false;
   layout();
   let ro = null;
   try { ro = new ResizeObserver(() => layout()); ro.observe(host); } catch (e){}
 
   const instant = !!opt.instant;
   const t0 = performance.now();
-  let raf = 0, done = false;
   const ease = (u) => u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
 
   function frame(now){
@@ -381,6 +499,7 @@ function mount(host, opt){
       nib.style.opacity = "0";
       wrap.classList.add("drawn");
       if (opt.onDone) opt.onDone();
+      setTimeout(startAlive, instant ? 0 : 700);
       return;
     }
     raf = requestAnimationFrame(frame);
@@ -394,7 +513,8 @@ function mount(host, opt){
     finish: function (){ cancelAnimationFrame(raf); strokes.forEach(s => paintTo(s, s.pts.length - 1)); nib.style.opacity = "0"; wrap.classList.add("drawn"); if (!done && opt.onDone){ done = true; opt.onDone(); } },
     snapshot: function (){ try { return ink.toDataURL("image/png"); } catch (e){ return ""; } },
     headPoint: function (){ return px([CX, CY]); },
-    scale: function (){ return S; }
+    scale: function (){ return S; },
+    alive: function (){ return aliveOn; }
   };
 }
 

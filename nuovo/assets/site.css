@@ -113,7 +113,7 @@ button{ font: inherit; color: inherit; }
   align-self: stretch;
   min-height: 300px;
 }
-.rl{ position: absolute; inset: 0; }
+.rl{ position: absolute; inset: 0; will-change: transform; }
 .rl canvas{ position: absolute; left: 0; top: 0; }
 .rl-glow{ filter: blur(6px); opacity: .34; }
 .rl-nib{
@@ -288,16 +288,30 @@ button{ font: inherit; color: inherit; }
   column-gap: 12px;
   margin: 0 0 38px;
 }
-.ini{
-  margin: 0;
-  padding-top: 5px;
+.grp{ scroll-margin-top: 28px; }
+.ini{ margin: 0; padding-top: 2px; line-height: 0; }
+.ini svg{ display: block; width: 52px; height: 62px; overflow: visible; }
+/* the letter is traced by the gold pen when it comes into view, then filled */
+.ini text{
   font-family: var(--display);
   font-weight: 100;
   font-variation-settings: "opsz" 100;
-  font-size: 56px;
-  line-height: .78;
-  color: var(--oro);
+  font-size: 60px;
+  fill: var(--oro);
+  fill-opacity: 0;
+  stroke: var(--oro-chiaro);
+  stroke-width: .7;
+  stroke-linejoin: round;
+  stroke-dasharray: 900;
+  stroke-dashoffset: 900;
 }
+.grp.inked .ini text{
+  stroke-dashoffset: 0;
+  fill-opacity: 1;
+  transition: stroke-dashoffset 2800ms cubic-bezier(.06, .72, .3, 1), fill-opacity 1300ms ease 1700ms, stroke-opacity 1300ms ease 1700ms;
+  stroke-opacity: .35;
+}
+.grp.inked.still .ini text{ transition: none; }
 .grp ul{ list-style: none; margin: 0; padding: 0; min-width: 0; }
 a.song{
   display: flex;
@@ -353,6 +367,54 @@ a.song{
 }
 .song:focus-visible .t{ color: var(--oro-chiaro); }
 .song:active .t{ color: var(--oro-chiaro); }
+/* the alphabet at the side: only while the index is in view */
+.abc{
+  position: fixed;
+  z-index: 40;
+  top: 50%;
+  right: calc(6px + env(safe-area-inset-right));
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 600ms ease;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.abc::before{
+  content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(var(--oro-rgb), .22) 12%, rgba(var(--oro-rgb), .22) 88%, transparent);
+}
+body.in-index .abc{ opacity: 1; pointer-events: auto; }
+body.song-open .abc{ visibility: hidden; }
+.abc a{
+  position: relative;
+  display: block;
+  width: 30px;
+  height: clamp(17px, 2.85vh, 26px);
+  line-height: clamp(17px, 2.85vh, 26px);
+  text-align: center;
+  font-family: var(--display);
+  font-weight: 300;
+  font-variation-settings: "opsz" 30;
+  font-size: clamp(12px, 1.9vh, 15px);
+  letter-spacing: .02em;
+  color: var(--cenere);
+  text-decoration: none;
+  background: var(--notte);
+  transition: color 300ms ease, transform 300ms var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.abc a.off{ color: rgba(168, 154, 147, .28); cursor: default; }
+.abc a.now{ color: var(--oro-chiaro); transform: scale(1.22); }
+@media (hover: hover){ .abc a:not(.off):hover{ color: var(--oro-chiaro); transform: scale(1.25); } }
+.abc a.touch{ color: var(--oro-chiaro); transform: scale(1.7) translateX(-6px); }
+@media (max-width: 1100px){ .index{ padding-right: 30px; } }
+
 .empty{ text-align: center; color: var(--cenere); font-style: italic; margin: 40px 0; column-span: all; }
 
 .rights{
@@ -394,6 +456,22 @@ a.song{
   transition: opacity 1600ms ease 250ms;
 }
 .veil.on .stage{ opacity: 1; }
+.stage::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    rgba(18, 10, 14, 0) calc(50% - 560px),
+    rgba(18, 10, 14, .5) calc(50% - 380px),
+    rgba(18, 10, 14, .58) 50%,
+    rgba(18, 10, 14, .5) calc(50% + 380px),
+    rgba(18, 10, 14, 0) calc(50% + 560px));
+}
+@media (max-width: 760px){
+  .stage::after{ background: linear-gradient(90deg, rgba(18, 10, 14, .3), rgba(18, 10, 14, .5) 22%, rgba(18, 10, 14, .54) 50%, rgba(18, 10, 14, .5) 78%, rgba(18, 10, 14, .3)); }
+}
 .stage .wash, .stage .fx{ position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .stage .wash{ transition: opacity 900ms ease; }
 .stage .fx{ display: block; }
@@ -418,6 +496,7 @@ a.song{
   position: absolute; inset: 0; z-index: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
+  overflow-anchor: none;
   -webkit-overflow-scrolling: touch;
   padding: calc(76px + env(safe-area-inset-top)) 22px calc(72px + env(safe-area-inset-bottom));
   outline: none;
@@ -439,7 +518,7 @@ a.song{
   letter-spacing: .02em;
   color: var(--avorio);
   text-wrap: balance;
-  text-shadow: 0 0 18px rgba(18, 10, 14, .85), 0 0 4px rgba(18, 10, 14, .8);
+  text-shadow: 0 0 2px #120A0E, 0 0 6px rgba(18, 10, 14, .9), 0 0 16px rgba(18, 10, 14, .8), 0 0 30px rgba(18, 10, 14, .6);
   transform-origin: 0 0;
 }
 .song-lang{ margin: 16px 0 0; font-style: italic; font-size: 16px; color: var(--cenere); text-shadow: 0 0 8px rgba(18, 10, 14, .9); }
@@ -456,14 +535,20 @@ a.song{
 
 .lyrics{
   margin: 42px auto 0;
-  max-width: 34ch;
-  font-weight: 330;
-  font-variation-settings: "opsz" 18;
-  font-size: clamp(19px, 2.3vw, 22px);
-  line-height: 1.36;
-  letter-spacing: .004em;
-  color: rgba(239, 230, 216, .95);
-  text-shadow: 0 0 2px rgba(18, 10, 14, .95), 0 0 9px rgba(18, 10, 14, .85), 0 0 22px rgba(18, 10, 14, .7);
+  max-width: min(620px, 100%);
+  font-family: var(--display);
+  font-weight: 300;
+  font-variation-settings: "opsz" 40;
+  font-size: clamp(23px, 2.7vw, 29px);
+  line-height: 1.24;
+  letter-spacing: .012em;
+  color: #F6EEE2;
+  text-shadow:
+    0 0 1px #120A0E,
+    0 0 3px rgba(18, 10, 14, .95),
+    0 0 7px rgba(18, 10, 14, .9),
+    0 0 14px rgba(18, 10, 14, .82),
+    0 0 26px rgba(18, 10, 14, .62);
   overflow-wrap: anywhere;
 }
 .lyrics p{ margin: 0 0 1.45em; }
@@ -478,7 +563,8 @@ a.song{
 @keyframes lineIn{ to{ opacity: 1; transform: none; } }
 
 /* two languages in one cell: the poem keeps its place while it turns */
-.lyrics.bi{ max-width: min(50ch, 100%); }
+.lyrics.bi{ max-width: min(700px, 100%); }
+@media (max-width: 420px){ .lyrics.bi{ font-size: 5.6vw; letter-spacing: 0; } }
 .ln.dual{ display: grid; }
 .ln .face{
   grid-area: 1 / 1;
@@ -621,7 +707,7 @@ body.song-open .hero, body.song-open .collection, body.song-open .rights, body.s
 
 @media (max-width: 560px){
   .grp{ grid-template-columns: 42px 1fr; column-gap: 10px; }
-  .ini{ font-size: 46px; }
+  .ini svg{ width: 42px; height: 52px; }
   .song .t{ font-size: 20px; }
   .song{ padding: 8px 0; }
   .frost{ padding-left: 20px; padding-right: 20px; }
@@ -637,6 +723,7 @@ body.song-open .hero, body.song-open .collection, body.song-open .rights, body.s
   .reading .song-head::after{ animation: none; transform: none; }
   .reading .ded-rose{ animation: none; }
   .waiting .thread{ animation: none; }
+  .grp.inked .ini text{ transition: none; }
   .veil, .stage{ transition-duration: 1ms; }
   .ln .face{ transition: none; }
 }
