@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Frammenti di Sogni e Speranze — Miran Demirovski</title>
+<meta name="description" content="Frammenti di Sogni e Speranze: testi e poesie di Miran Demirovski, in italiano, croato e inglese.">
+<meta name="author" content="Miran Demirovski">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#120A0E">
+
+<!-- how the link looks when it is shared: WhatsApp, Instagram, Facebook, Telegram, iMessage -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mirandemirovski-rgb.github.io/frammenti/">
+<meta property="og:title" content="Frammenti di Sogni e Speranze">
+<meta property="og:description" content="Testi e poesie di Miran Demirovski">
+<meta property="og:image" content="https://mirandemirovski-rgb.github.io/frammenti/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Una rosa disegnata con una linea d'oro, sopra il titolo Frammenti di Sogni e Speranze">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://mirandemirovski-rgb.github.io/frammenti/og.jpg">
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Frammenti">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<link rel="preload" href="fonts/imbue-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/newsreader-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="stylesheet" href="assets/site.css?v=1">
+</head>
+<body>
+<a class="skip" href="#indice">Vai ai testi</a>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="hero" id="hero">
+  <canvas class="trail" id="trail" aria-hidden="true"></canvas>
+  <div class="petals" id="petals" aria-hidden="true"></div>
+  <div class="rose-host" id="roseHost" role="img" aria-label="Una rosa disegnata con una sola linea d'oro"></div>
+  <div class="hero-text">
+    <h1 class="title" id="title" aria-label="Frammenti di Sogni e Speranze"><span class="tw" aria-hidden="true"></span></h1>
+    <p class="author">Miran Demirovski</p>
+  </div>
+  <a class="descend" id="descend" href="#indice" aria-label="Vai ai testi"><span></span></a>
+</header>
+
+<main class="collection" id="indice" tabindex="-1">
+  <h2 class="sr">I testi</h2>
+  <div class="search">
+    <label class="sr" for="q">Cerca un titolo</label>
+    <input id="q" type="search" placeholder="Cerca un titolo" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+    <button class="clear" id="clear" type="button" aria-label="Cancella la ricerca" hidden><span></span></button>
+  </div>
+  <p class="count" id="count" aria-live="polite"></p>
+  <div class="waiting" id="waiting"><span class="thread"></span><p>I testi stanno arrivando</p></div>
+  <div class="failed" id="failed" hidden>
+    <p>I testi non sono arrivati. Controlla la connessione, poi riprova.</p>
+    <button type="button" id="retry">Riprova</button>
+  </div>
+  <div class="index" id="index"></div>
+</main>
+
+<footer class="rights">
+  <p class="mark">&#169; <span id="copyYear">2026</span> Miran Demirovski. Tutti i diritti riservati.</p>
+  <p>Tutti i testi, le poesie e le traduzioni di questa raccolta sono opera originale di Miran Demirovski e sono protetti dal diritto d&#8217;autore. Nessuna parte pu&#242; essere riprodotta, copiata, distribuita, adattata, musicata, registrata o eseguita in pubblico senza autorizzazione scritta dell&#8217;autore.</p>
+  <p lang="en">All lyrics, poems and translations in this collection are the original work of Miran Demirovski and are protected by copyright. No part may be reproduced, copied, distributed, adapted, set to music, recorded or performed in public without the author&#8217;s written permission.</p>
+</footer>
+
+<div class="veil" id="veil" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="stage" id="stage" aria-hidden="true"></div>
+  <div class="sheet" id="sheet">
+    <div class="frost" id="frost" tabindex="-1">
+      <article class="poem">
+        <header class="song-head">
+          <h2 id="sheetTitle"></h2>
+          <p class="song-lang" id="sheetLang"></p>
+          <button class="ded-rose" id="roseGift" type="button" hidden aria-expanded="false" aria-label="A chi &#232; dedicata">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12.3 8.9c-.7.2-1.4-.3-1.4-1 0-.8.8-1.3 1.6-1.1.9.2 1.4 1.2 1 2.1-.5 1-1.9 1.4-2.9.8-1.1-.6-1.4-2.1-.7-3.1"/>
+              <path d="M7.7 6.9c-.5 2.9 1.4 5.2 4.3 5.2s4.8-2.3 4.3-5.2"/>
+              <path d="M8.6 5.6C9.8 4.2 10.9 3.7 12 3.7s2.4.6 3.5 1.9"/>
+              <path d="M12 12.1c.2 2.9-.1 5.6-.4 8.4"/>
+              <path d="M11.8 16.2c-1.3-1.5-2.9-1.9-4.3-1.6 1 1.5 2.5 2.1 4.3 1.6z"/>
+            </g></svg>
+          </button>
+          <p class="dedica" id="dedica" hidden></p>
+        </header>
+        <div class="lyrics" id="sheetBody"></div>
+        <p class="sign">&#169; Miran Demirovski</p>
+        <a class="next-song" id="nextSong" href="#"><span class="lab">Il prossimo</span><span class="t" id="nextTitle"></span></a>
+      </article>
+    </div>
+    <div class="song-bar">
+      <button class="share" id="share" type="button">Condividi</button>
+      <button class="close" id="close" type="button" aria-label="Chiudi e torna ai testi"><span></span></button>
+    </div>
+    <button class="side prev" id="sidePrev" type="button" aria-label="Testo precedente"><span></span></button>
+    <button class="side next" id="sideNext" type="button" aria-label="Testo successivo"><span></span></button>
+  </div>
+</div>
+
+<noscript><p class="nojs">Per leggere i testi serve JavaScript attivo nel browser.</p></noscript>
+
+<script src="assets/rose-lines.js?v=1" defer></script>
+<script src="assets/rose.js?v=1" defer></script>
+<script src="assets/fx.js?v=1" defer></script>
+<script src="assets/app.js?v=1" defer></script>
+</body>
+</html>
