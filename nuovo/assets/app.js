@@ -18,10 +18,10 @@ const TITLES = [
   "Fragments of Dreams and Hope",
   "Između sna i nade"
 ];
-const LANG_WORD = { it: "italiano", hr: "hrvatski", en: "english" };
+const LANG_WORD = { it: "italiano", hr: "hrvatski", en: "english", nap: "napoletano" };
 
-/* Only songs that are live on the old page. "un sole immenso" (for Lina, in
-   Neapolitan) is ready in the notes and can be added here once approved. */
+/* A song joins by its title (lower case, punctuation removed). The lines must
+   be exactly one per line of the song, or the rose does not appear. */
 const DEDICATIONS = {
   "la mia casa": {
     to: "Dedicated to Niko",
@@ -54,6 +54,55 @@ const DEDICATIONS = {
       "I feel safe, I feel loved",
       "You are and always will be",
       "My home"
+    ]
+  },
+  "un sole immenso": {
+    to: "Dedicated to Lina",
+    lang: "nap",
+    lines: [
+      "'O tiempo fa cagnà 'e ccose",
+      "E cagnano sempe 'e pressa",
+      "Te truove dint'a n'ata vita",
+      "Senza capì ca nun è 'a stessa",
+      "Ma",
+      "Ccà",
+      "A 'o fianco mio",
+      "A me dà sempe curaggio",
+      "Ce stive tu",
+      "Pure quanno",
+      "Tutto pareva ca jeva a peggio",
+      "Ccà cu mme",
+      "Ce stive tu",
+      "Bella",
+      "Comme Napule 'e state",
+      "'O sole mio immenzo",
+      "Na luce",
+      "Ca me fa brillà",
+      "E forse nun 'o ddico cu 'e pparole",
+      "Ma si' nu sullievo p' 'o core mio",
+      "Tenerte a 'o fianco mio",
+      "Conta cchiù d'ogne cosa a 'o munno",
+      "Nu sustegno ca me salva",
+      "D' 'o dulore cchiù prufunno",
+      "Dint'a chesta vita",
+      "Ca 'o tiempo pare ca vo' sfidà",
+      "'Ncopp'a te",
+      "Aggio pututo sempe cuntà",
+      "Chesto",
+      "Nun m' 'o scordo maje",
+      "Chistu bene",
+      "Ca sulo tu me faje",
+      "I' surrido",
+      "quanno surride tu",
+      "E sto male",
+      "quanno staje male tu",
+      "'O sole mio immenzo",
+      "Bella d'anema e core",
+      "Pe' mme",
+      "Si' 'a meglio amica",
+      "E chesto",
+      "'O tiempo",
+      "Nun 'o ccagnarrà maje."
     ]
   }
 };
@@ -485,6 +534,20 @@ function dedicationClear(){
   elDed.textContent = "";
   elBody.classList.remove("en", "settled", "bi", "rearm");
 }
+/* a short apostrophe word ('o, 'e, p', si') never ends a line: it holds the next word */
+function keepTogether(line){
+  const w = String(line).split(" ");
+  let out = "";
+  for (let i = 0; i < w.length; i++){
+    out += w[i];
+    if (i < w.length - 1){
+      const short = /^(?:['\u2019]\p{L}{1,2}|\p{L}{1,2}['\u2019])$/u.test(w[i])
+        || (w[i].length === 1 && /^['\u2019]/.test(w[i + 1]));
+      out += short ? "\u00A0" : " ";
+    }
+  }
+  return out;
+}
 function dedicationFor(s){
   dedicationClear();
   const d = DEDICATIONS[dedKey(s.title)];
@@ -500,7 +563,7 @@ function dedicationFor(s){
     const en = document.createElement("span");
     en.className = "face fc-en";
     en.setAttribute("lang", d.lang || "en");
-    en.textContent = tr[i];
+    en.textContent = keepTogether(tr[i]);
     ln.textContent = "";
     ln.classList.add("dual");
     ln.append(it, en);
@@ -516,7 +579,8 @@ function turnLanguage(){
   elBody.classList.remove("settled");
   void elBody.offsetWidth;
   elBody.classList.remove("rearm");
-  elBody.classList.toggle("en");
+  const turned = elBody.classList.toggle("en");
+  if (current) elLang.textContent = turned ? (LANG_WORD[DED.lang] || DED.lang || "") : (LANG_WORD[current.lang] || "");
   const n = elBody.querySelectorAll(".ln").length;
   dedTimer = setTimeout(() => elBody.classList.add("settled"), SLOW ? 10 : n * TURN_STEP + TURN_RIDE);
 }
