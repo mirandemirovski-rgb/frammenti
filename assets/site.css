@@ -116,6 +116,11 @@ button{ font: inherit; color: inherit; }
 .rl{ position: absolute; inset: 0; will-change: transform; }
 .rl canvas{ position: absolute; left: 0; top: 0; }
 .rl-glow{ filter: blur(6px); opacity: .34; }
+/* the veil of the petals fades in once their lines are drawn; the fallen piece floats on its own */
+.rl-fill{ opacity: 0; transition: opacity 2800ms ease; will-change: transform; }
+.rl-fill.on{ opacity: 1; }
+.rl-still{ will-change: transform; }
+.rl-shard{ position: absolute; inset: 0; will-change: transform; }
 .rl-nib{
   position: absolute; left: -15px; top: -15px; width: 30px; height: 30px;
   border-radius: 50%;
