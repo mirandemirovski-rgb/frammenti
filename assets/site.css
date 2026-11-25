@@ -215,55 +215,32 @@ button{ font: inherit; color: inherit; }
   padding: clamp(36px, 8vh, 96px) 0 24px;
   outline: none;
 }
-.search{ position: relative; width: min(520px, 100%); margin: 0 auto; }
-.search::after{
-  content: "";
-  position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(var(--oro-rgb), .95), transparent);
-  transform: scaleX(0);
-  transition: transform 700ms var(--ease);
-}
-.search:focus-within::after{ transform: scaleX(1); }
-#q{
-  display: block;
-  width: 100%;
-  margin: 0;
-  padding: 12px 44px;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid rgba(var(--oro-rgb), .3);
-  border-radius: 0;
+/* a line from the songs, written where the falling petal lands */
+.verse{
+  margin: 0 auto;
+  width: min(760px, 100%);
+  min-height: calc(4 * 1.5em + 8px);
+  display: grid;
+  place-items: center;
+  font: italic 300 clamp(18px, 2.1vw, 23px)/1.5 var(--text);
   color: var(--avorio);
-  font: italic 300 clamp(19px, 2vw, 22px)/1.4 var(--text);
   text-align: center;
-  outline: none;
-  -webkit-appearance: none;
-  appearance: none;
+  text-wrap: balance;
 }
-#q::placeholder{ color: var(--fumo); opacity: 1; }
-#q::-webkit-search-cancel-button, #q::-webkit-search-decoration{ -webkit-appearance: none; appearance: none; }
-.clear{
-  position: absolute; right: 0; top: 50%;
-  width: 44px; height: 44px; margin-top: -22px;
-  background: none; border: 0; cursor: pointer;
+.verse blockquote{ margin: 0; padding: 0 6px; }
+.verse .w{
+  display: inline-block;
+  opacity: 0;
+  filter: blur(6px);
+  transform: translateY(5px);
+  transition: opacity 1100ms ease, filter 1300ms ease, transform 1300ms var(--ease);
+  text-shadow: 0 0 18px rgba(var(--oro-rgb), .18);
 }
-.clear[hidden]{ display: none; }
-.clear span::before, .clear span::after{
-  content: ""; position: absolute; left: 50%; top: 50%; width: 15px; height: 1px; margin-left: -7.5px;
-  background: var(--cenere);
-}
-.clear span::before{ transform: rotate(45deg); }
-.clear span::after{ transform: rotate(-45deg); }
-.clear:hover span::before, .clear:hover span::after{ background: var(--avorio); }
-
-.count{
-  margin: 14px 0 0;
-  min-height: 1.5em;
-  text-align: center;
-  font-style: italic;
-  font-size: 15px;
-  color: var(--cenere);
-}
+.verse blockquote.in .w{ opacity: 1; filter: none; transform: none; }
+.verse blockquote.out .w{ opacity: 0; filter: blur(4px); transition: opacity 800ms ease, filter 800ms ease; transition-delay: 0ms !important; }
+.lp.vp{ position: absolute; z-index: 5; pointer-events: none; width: 26px; height: 40px; }
+.lp.vp path{ stroke-width: 1.1; }
+@media (max-width: 600px){ .verse{ min-height: calc(5 * 1.5em + 8px); } }
 
 .waiting{ margin: 52px auto 0; text-align: center; color: var(--cenere); font-style: italic; font-size: 16px; }
 .waiting[hidden]{ display: none; }
@@ -435,6 +412,22 @@ body.song-open .abc{ visibility: hidden; }
 }
 .rights p{ margin: 0 0 .9em; }
 .rights .mark{ color: var(--cenere); font-size: 15px; font-style: italic; }
+.rights .made{ color: var(--avorio); font-size: 16px; font-style: italic; margin-bottom: 1.1em; }
+.rights .reach{ margin: 0 0 2.4em; }
+.contact{
+  display: inline-block;
+  padding: 11px 30px;
+  border: 1px solid rgba(var(--oro-rgb), .55);
+  border-radius: 999px;
+  color: var(--oro-chiaro);
+  font: italic 400 17px/1 var(--text);
+  letter-spacing: .02em;
+  text-decoration: none;
+  transition: background-color 400ms var(--ease), border-color 400ms var(--ease), color 400ms var(--ease);
+}
+.contact:hover, .contact:focus-visible{ background: rgba(var(--oro-rgb), .12); border-color: var(--oro); color: var(--avorio); }
+.contact:focus-visible{ outline: 1px solid var(--oro); outline-offset: 4px; }
+.contact[hidden]{ display: none; }
 
 /* ============================================================
    READING — a song opened
@@ -708,7 +701,7 @@ body.song-open .abc{ visibility: hidden; }
 @media (max-width: 760px), (hover: none){ .side{ display: none; } }
 
 /* while a song is open, the page behind stops drawing */
-body.song-open .hero, body.song-open .collection, body.song-open .rights, body.song-open .grain{ visibility: hidden; }
+body.song-open .hero, body.song-open .collection, body.song-open .rights, body.song-open .grain, body.song-open .lp.vp{ visibility: hidden; }
 
 @media (max-width: 560px){
   .grp{ grid-template-columns: 42px 1fr; column-gap: 10px; }

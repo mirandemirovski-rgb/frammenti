@@ -34,7 +34,7 @@
 <link rel="preload" href="fonts/newsreader-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
-<link rel="stylesheet" href="assets/site.css?v=5">
+<link rel="stylesheet" href="assets/site.css?v=6">
 </head>
 <body>
 <a class="skip" href="#indice">Vai ai testi</a>
@@ -53,12 +53,7 @@
 
 <main class="collection" id="indice" tabindex="-1">
   <h2 class="sr">I testi</h2>
-  <div class="search">
-    <label class="sr" for="q">Cerca un titolo</label>
-    <input id="q" type="search" placeholder="Cerca un titolo" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
-    <button class="clear" id="clear" type="button" aria-label="Cancella la ricerca" hidden><span></span></button>
-  </div>
-  <p class="count" id="count" aria-live="polite"></p>
+  <figure class="verse" id="verse" aria-live="polite"><blockquote id="verseText"></blockquote></figure>
   <div class="waiting" id="waiting"><span class="thread"></span><p>I testi stanno arrivando</p></div>
   <div class="failed" id="failed" hidden>
     <p>I testi non sono arrivati. Controlla la connessione, poi riprova.</p>
@@ -68,6 +63,8 @@
 </main>
 
 <footer class="rights">
+  <p class="made">Concept e design del sito di Miran Demirovski</p>
+  <p class="reach"><a class="contact" id="contact" href="#" hidden>Contatti</a></p>
   <p class="mark">&#169; <span id="copyYear">2026</span> Miran Demirovski. Tutti i diritti riservati.</p>
   <p>Tutti i testi, le poesie e le traduzioni di questa raccolta sono opera originale di Miran Demirovski e sono protetti dal diritto d&#8217;autore. Nessuna parte pu&#242; essere riprodotta, copiata, distribuita, adattata, musicata, registrata o eseguita in pubblico senza autorizzazione scritta dell&#8217;autore.</p>
   <p lang="en">All lyrics, poems and translations in this collection are the original work of Miran Demirovski and are protected by copyright. No part may be reproduced, copied, distributed, adapted, set to music, recorded or performed in public without the author&#8217;s written permission.</p>
@@ -102,9 +99,9 @@
 
 <noscript><p class="nojs">Per leggere i testi serve JavaScript attivo nel browser.</p></noscript>
 
-<script src="assets/rose-lines.js?v=5" defer></script>
-<script src="assets/rose.js?v=5" defer></script>
-<script src="assets/fx.js?v=5" defer></script>
-<script src="assets/app.js?v=5" defer></script>
+<script src="assets/rose-lines.js?v=6" defer></script>
+<script src="assets/rose.js?v=6" defer></script>
+<script src="assets/fx.js?v=6" defer></script>
+<script src="assets/app.js?v=6" defer></script>
 </body>
 </html>

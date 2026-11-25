@@ -160,8 +160,8 @@ function normalise(raw){
    THE SONGS — the last copy at once, the fresh one from Google
    ============================================================ */
 const COLL = new Intl.Collator("it", { sensitivity: "base", numeric: true });
-let ALL = [], BY_SLUG = new Map(), FILTER = "", VERSION = "";
-const elIndex = $("index"), elCount = $("count"), elWait = $("waiting"), elFail = $("failed"), elQ = $("q"), elClear = $("clear");
+let ALL = [], BY_SLUG = new Map(), VERSION = "", QUOTES = [];
+const elIndex = $("index"), elWait = $("waiting"), elFail = $("failed");
 
 function setSongs(raw, version){
   const list = normalise(raw);
@@ -209,7 +209,7 @@ function fresh(){
 
 function load(){
   const kept = readStore();
-  if (kept) setSongs(kept.songs, String(kept.v || ""));
+  if (kept){ setSongs(kept.songs, String(kept.v || "")); setQuotes(kept.quotes); }
   let tries = 0;
   function attempt(){
     tries++;
@@ -218,7 +218,8 @@ function load(){
       if (!songs || !songs.length) throw new Error("empty");
       const v = String((data && data.v) || "");
       if (!kept || v !== VERSION || !ALL.length) setSongs(songs, v);
-      writeStore({ v: v, songs: songs });
+      setQuotes(data && data.quotes);
+      writeStore({ v: v, songs: songs, quotes: QUOTES });
     }).catch((err) => {
       console.warn("[frammenti] songs:", err && err.message);
       if (tries < 2){ setTimeout(attempt, 1800); return; }
@@ -232,11 +233,7 @@ $("retry").addEventListener("click", () => { elFail.hidden = true; elWait.hidden
 /* ============================================================
    THE INDEX — letters and titles, with a dotted leader to the language
    ============================================================ */
-function visible(){
-  if (!FILTER) return ALL;
-  const q = fold(FILTER);
-  return ALL.filter((s) => fold(s.title).includes(q));
-}
+function visible(){ return ALL; }
 
 const SVGNS = "http:\/\/www.w3.org\/2000\/svg";
 const INKED = new Set();               /* letters the pen has already drawn this visit */
@@ -254,12 +251,6 @@ function renderIndex(){
   const list = visible();
   if (inkSeer) inkSeer.disconnect();
   elIndex.textContent = "";
-  if (FILTER && !list.length){
-    const p = document.createElement("p");
-    p.className = "empty";
-    p.textContent = "Nessun titolo contiene «" + FILTER.trim() + "».";
-    elIndex.appendChild(p);
-  }
   const present = new Map();
   let grp = null, ul = null, letter = "";
   for (const s of list){
@@ -311,9 +302,6 @@ function renderIndex(){
     li.appendChild(a);
     ul.appendChild(li);
   }
-  elCount.textContent = !ALL.length ? ""
-    : FILTER ? list.length + " di " + ALL.length
-    : ALL.length + (ALL.length === 1 ? " testo" : " testi");
   railFill(present);
 }
 
@@ -415,16 +403,6 @@ elIndex.addEventListener("click", (e) => {
   if (s) openSong(s, a, true);
 });
 
-let qTimer = 0;
-elQ.addEventListener("input", () => {
-  clearTimeout(qTimer);
-  qTimer = setTimeout(() => {
-    FILTER = elQ.value;
-    elClear.hidden = !FILTER;
-    renderIndex();
-  }, 60);
-});
-elClear.addEventListener("click", () => { elQ.value = ""; FILTER = ""; elClear.hidden = true; renderIndex(); elQ.focus(); });
 
 /* ============================================================
    READING
@@ -957,10 +935,142 @@ function startRose(){
   } catch (e){ console.warn("[frammenti] rose:", e); }
 }
 
+/* ============================================================
+   THE FALLING SENTENCE — every minute a petal lets go of the rose and,
+   just before it reaches the titles, becomes a line from the songs
+   (MAIN, column A of the sheet). The sentence stays until the next one.
+   ============================================================ */
+const elVerse = $("verse"), elVerseText = $("verseText");
+const VERSE_EVERY = 60000;
+let verseFade = 0, verseOrder = [], verseDue = Infinity, verseBusy = false, verseSeen = false, verseTimer = 0;
+
+function setQuotes(list){
+  const q = Array.isArray(list) ? list.map((s) => String(s || "").trim()).filter(Boolean) : [];
+  if (q.join("\n") === QUOTES.join("\n")) return;
+  QUOTES = q;
+  verseOrder = [];
+  if (!QUOTES.length){ elVerse.classList.remove("on"); elVerseText.textContent = ""; }
+}
+function nextQuote(){
+  if (!verseOrder.length){
+    verseOrder = QUOTES.map((_, i) => i);
+    for (let i = verseOrder.length - 1; i > 0; i--){ const j = (Math.random() * (i + 1)) | 0; [verseOrder[i], verseOrder[j]] = [verseOrder[j], verseOrder[i]]; }
+    if (verseOrder.length > 1 && QUOTES[verseOrder[verseOrder.length - 1]] === elVerseText.dataset.q) verseOrder.unshift(verseOrder.pop());
+  }
+  return QUOTES[verseOrder.pop()];
+}
+if ("IntersectionObserver" in window){
+  new IntersectionObserver((en) => { verseSeen = en[0].isIntersecting; if (verseSeen) verseTick(); }, { threshold: .2 }).observe(elVerse);
+}
+
+/* the words come out of the petal one after another, like ink taking */
+function writeVerse(text){
+  const old = elVerseText.querySelectorAll(".w");
+  elVerseText.textContent = "";
+  elVerseText.dataset.q = text;
+  const words = text.split(/(\s+)/);
+  let k = 0;
+  words.forEach((w) => {
+    if (!w) return;
+    if (/^\s+$/.test(w)){ elVerseText.appendChild(document.createTextNode(" ")); return; }
+    const s = document.createElement("span");
+    s.className = "w";
+    s.textContent = w;
+    s.style.transitionDelay = (SLOW ? 0 : k * 85) + "ms";
+    elVerseText.appendChild(s);
+    k++;
+  });
+  elVerse.classList.add("on");
+  void elVerseText.offsetWidth;
+  elVerseText.classList.add("in");
+  return k;
+}
+function clearVerse(){
+  return new Promise((res) => {
+    if (!elVerseText.textContent){ res(); return; }
+    elVerseText.classList.remove("in");
+    elVerseText.classList.add("out");
+    setTimeout(() => { elVerseText.classList.remove("out"); res(); }, SLOW ? 0 : 900);
+  });
+}
+
+/* one petal, larger than the others, from the rose (or from above) down to the sentence */
+function fallTo(done){
+  const vr = elVerse.getBoundingClientRect();
+  const ex = vr.left + vr.width / 2 + window.scrollX;
+  const ey = vr.top + Math.min(vr.height, 60) / 2 + window.scrollY;
+  let sx, sy;
+  if (rose && heroSeen){
+    const rr = $("roseHost").getBoundingClientRect(), hp = rose.headPoint();
+    sx = rr.left + hp[0] + window.scrollX + (Math.random() - .5) * 40;
+    sy = rr.top + hp[1] + window.scrollY + 30;
+  } else {
+    sx = ex + (Math.random() - .5) * 160;
+    sy = Math.max(window.scrollY - 40, ey - window.innerHeight * .7);
+  }
+  const NS = "http:\/\/www.w3.org\/2000\/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("class", "lp vp");
+  svg.setAttribute("viewBox", "-16 -40 32 44");
+  PETALS[(Math.random() * PETALS.length) | 0].forEach((d) => { const p = document.createElementNS(NS, "path"); p.setAttribute("d", d); svg.appendChild(p); });
+  document.body.appendChild(svg);
+  const dy = ey - sy, side = Math.random() < .5 ? -1 : 1;
+  const sway = Math.min(70, Math.max(30, Math.abs(dy) * .08)) * side;
+  const dur = Math.max(5200, Math.min(9000, Math.abs(dy) * 9));
+  const r0 = Math.random() * 360;
+  const at = (f, dx, r, rx, sc) => "translate(" + (sx + (ex - sx) * f + dx).toFixed(1) + "px," + (sy + dy * f).toFixed(1) + "px) rotate(" + r + "deg) rotateX(" + rx + "deg) scale(" + sc + ")";
+  const a = svg.animate([
+    { transform: at(0, 0, r0, 0, 1.25), opacity: 0 },
+    { transform: at(.12, sway * .5, r0 + 40 * side, 60, 1.3), opacity: .95, offset: .1 },
+    { transform: at(.38, -sway, r0 + 110 * side, 200, 1.3), opacity: .95, offset: .36 },
+    { transform: at(.66, sway, r0 + 190 * side, 330, 1.3), opacity: .95, offset: .64 },
+    { transform: at(.9, -sway * .3, r0 + 250 * side, 420, 1.2), opacity: .9, offset: .88 },
+    { transform: at(1, 0, r0 + 280 * side, 450, .2), opacity: 0 }
+  ], { duration: dur, easing: "cubic-bezier(.35,.1,.55,1)", fill: "both" });
+  setTimeout(done, dur * .86);                       /* just before it lands, it becomes the words */
+  a.onfinish = () => svg.remove();
+}
+
+function verseTick(){
+  if (verseBusy || !QUOTES.length || Date.now() < verseDue) return;
+  if (songOpen || document.hidden) return;
+  if (!verseSeen && !heroSeen) return;               /* nobody is near: wait until someone is */
+  verseBusy = true;
+  verseDue = Date.now() + VERSE_EVERY;
+  const text = nextQuote();
+  const show = () => clearVerse().then(() => {
+    const k = writeVerse(text);
+    verseBusy = false;
+    /* it stays twelve seconds once all its words are in, then dissolves */
+    const hold = (SLOW ? 0 : k * 85 + 1300) + 12000;
+    clearTimeout(verseFade);
+    verseFade = setTimeout(() => { if (elVerseText.dataset.q === text) clearVerse(); }, hold);
+  });
+  if (SLOW || (!verseSeen && !heroSeen)) show();
+  else fallTo(show);
+}
+function startVerses(delay){
+  if (verseTimer) return;                            /* once: the rose may say it is done twice */
+  verseDue = Date.now() + (delay || 0);
+  clearInterval(verseTimer);
+  verseTimer = setInterval(verseTick, 1000);
+  document.addEventListener("visibilitychange", verseTick);
+}
+
+/* contact: the address is put together here, so it is not lying in the page for robots to collect */
+(function (){
+  const el = $("contact");
+  if (!el) return;
+  const who = ["miran", "demirovski"].join(""), where = ["yahoo", "it"].join(".");
+  el.href = "mailto:" + who + "@" + where + "?subject=" + encodeURIComponent("Frammenti di Sogni e Speranze");
+  el.hidden = false;
+})();
+
 /* the year of the rights widens on its own */
 (function (){ const y = new Date().getFullYear(); if (y > 2026) $("copyYear").textContent = "2026–" + y; })();
 
 startRose();
 trail();
 load();
+startVerses(SLOW ? 0 : 8000);           /* the first sentence once the rose is drawn, then every minute */
 })();
