@@ -1016,15 +1016,15 @@ function fallTo(done){
   document.body.appendChild(svg);
   const dy = ey - sy, side = Math.random() < .5 ? -1 : 1;
   const sway = Math.min(70, Math.max(30, Math.abs(dy) * .08)) * side;
-  const dur = Math.max(5200, Math.min(9000, Math.abs(dy) * 9));
+  const dur = Math.max(8000, Math.min(13000, Math.abs(dy) * 16));     /* slowly */
   const r0 = Math.random() * 360;
   const at = (f, dx, r, rx, sc) => "translate(" + (sx + (ex - sx) * f + dx).toFixed(1) + "px," + (sy + dy * f).toFixed(1) + "px) rotate(" + r + "deg) rotateX(" + rx + "deg) scale(" + sc + ")";
   const a = svg.animate([
-    { transform: at(0, 0, r0, 0, 1.25), opacity: 0 },
-    { transform: at(.12, sway * .5, r0 + 40 * side, 60, 1.3), opacity: .95, offset: .1 },
-    { transform: at(.38, -sway, r0 + 110 * side, 200, 1.3), opacity: .95, offset: .36 },
-    { transform: at(.66, sway, r0 + 190 * side, 330, 1.3), opacity: .95, offset: .64 },
-    { transform: at(.9, -sway * .3, r0 + 250 * side, 420, 1.2), opacity: .9, offset: .88 },
+    { transform: at(0, 0, r0, 0, 1.6), opacity: 0 },
+    { transform: at(.12, sway * .5, r0 + 40 * side, 60, 1.75), opacity: 1, offset: .1 },
+    { transform: at(.38, -sway, r0 + 110 * side, 200, 1.75), opacity: 1, offset: .36 },
+    { transform: at(.66, sway, r0 + 190 * side, 330, 1.75), opacity: 1, offset: .64 },
+    { transform: at(.9, -sway * .3, r0 + 250 * side, 420, 1.6), opacity: .95, offset: .88 },
     { transform: at(1, 0, r0 + 280 * side, 450, .2), opacity: 0 }
   ], { duration: dur, easing: "cubic-bezier(.35,.1,.55,1)", fill: "both" });
   setTimeout(done, dur * .86);                       /* just before it lands, it becomes the words */
@@ -1034,7 +1034,7 @@ function fallTo(done){
 function verseTick(){
   if (verseBusy || !QUOTES.length || Date.now() < verseDue) return;
   if (songOpen || document.hidden) return;
-  if (!verseSeen && !heroSeen) return;               /* nobody is near: wait until someone is */
+  if (!verseSeen) return;                            /* only when the place where it lands can be seen */
   verseBusy = true;
   verseDue = Date.now() + VERSE_EVERY;
   const text = nextQuote();
@@ -1046,7 +1046,7 @@ function verseTick(){
     clearTimeout(verseFade);
     verseFade = setTimeout(() => { if (elVerseText.dataset.q === text) clearVerse(); }, hold);
   });
-  if (SLOW || (!verseSeen && !heroSeen)) show();
+  if (SLOW) show();
   else fallTo(show);
 }
 function startVerses(delay){
@@ -1072,5 +1072,5 @@ function startVerses(delay){
 startRose();
 trail();
 load();
-startVerses(SLOW ? 0 : 8000);           /* the first sentence once the rose is drawn, then every minute */
+startVerses(SLOW ? 0 : 4000);           /* the first sentence once the rose is drawn, then every minute */
 })();
